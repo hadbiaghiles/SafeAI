@@ -10,8 +10,10 @@ external integrations (GitHub, Slack, SQL), and infers capabilities
 import re
 from safeai.analysis.capabilities import dedupe_capabilities, make_capability
 from safeai.analysis.semantic import build_semantic_document, resolve_symbol, resolve_symbol_origin
+from safeai.frameworks import register_parser
 
 
+@register_parser
 class LangChainParser:
     name = "langchain"
 

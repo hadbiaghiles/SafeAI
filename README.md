@@ -38,7 +38,7 @@ SafeAI sits before runtime guardrails and red-teaming tools in the security life
 
 | Feature | Description |
 |---------|-------------|
-| **Framework Detection** | Detects and parses 8 AI agent frameworks |
+| **Framework Detection** | Detects and parses 15 AI agent frameworks |
 | **Capability Discovery** | Identifies filesystem, shell, network, database, and other capabilities |
 | **AI Risk Analysis** | Categorizes findings into 7 risk categories with weighted trust scoring |
 | **Prompt Risk Analysis** | Detects injection patterns, delimiter issues, system leak, role override |
@@ -92,6 +92,13 @@ Reports — terminal, JSON, SARIF, HTML
 | Microsoft Agent Framework | ✔ | Partial | Partial | Partial | Early Preview |
 | Azure AI Foundry | ✔ | Minimal | Minimal | Minimal | Early Preview |
 | Bedrock Agent | ✔ | Minimal | Minimal | Minimal | Early Preview |
+| Claude Code | ✔ | Minimal | Minimal | Minimal | Early Preview |
+| Google ADK | ✔ | Partial | Minimal | Minimal | Early Preview |
+| Mastra | ✔ | Partial | Minimal | Minimal | Early Preview |
+| Haystack | ✔ | Partial | Minimal | Minimal | Early Preview |
+| LlamaIndex | ✔ | Partial | Minimal | Minimal | Early Preview |
+| Dify | ✔ | Minimal | Minimal | Minimal | Early Preview |
+| n8n | ✔ | Partial | Minimal | Minimal | Early Preview |
 
 
 ### Framework Support Details
@@ -104,6 +111,17 @@ Reports — terminal, JSON, SARIF, HTML
 - **Microsoft Agent Framework** — detects `AgentClient`, tools, workflows, Azure models
 - **Azure AI Foundry** — detects YAML configurations with Azure resources
 - **Bedrock Agent** — detects JSON configurations with Bedrock resources
+- **Claude Code** — detects `CLAUDE.md` and `.claude/` configuration references
+- **Google ADK** — detects ADK agent, workflow, tool, and model patterns
+- **Mastra** — detects Mastra agents, workflows, tools, and model references
+- **Haystack** — detects Haystack pipelines, agents, tools, and retrievers
+- **LlamaIndex** — detects agents, tools, indexes, and model references
+- **Dify** — detects Dify workflow and agent configuration files
+- **n8n** — detects n8n workflow exports, nodes, and connections
+
+The seven frameworks above are early-preview adapters. Detection and basic
+artifact discovery are available, but their framework-specific analysis is
+not yet equivalent to the established adapters.
 
 ---
 

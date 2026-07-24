@@ -8,7 +8,7 @@ This document describes the planned roadmap across five phases. Phases are not s
 
 ## Phase 1 — Static AI Risk Scanner (OSS)
 
-*Current state — in active development.*
+*Current state — Phase 1 stabilization complete; framework depth remains in active development.*
 
 **Scope:** Framework, agent, workflow, prompt, tool, skill, model, memory, MCP, identity, and integration discovery.
 
@@ -24,7 +24,7 @@ This document describes the planned roadmap across five phases. Phases are not s
 - Governance signals — auth, permissions, audit configurations
 - Heuristic data flows — untrusted input propagation into prompts
 
-**Outputs:** JSON, HTML, SARIF 2.1.0, capability graph, capability diff, trust score
+**Outputs:** JSON, HTML, SARIF 2.1.0, capability graph, and trust score. Capability diff remains planned.
 
 ---
 
@@ -44,6 +44,10 @@ Deep analysis of reusable AI artifacts:
 Detect embedded prompts, hardcoded secrets, excessive permissions, insecure defaults, and risky component compositions.
 
 Remains **offline and static** — no reputation services or vulnerability feeds at this stage.
+
+The v1.1 stabilization sprint adds normalized component inventories, static
+component diagnostics, provider-aware model checks, and early-preview adapters
+for Claude Code, Google ADK, Mastra, Haystack, LlamaIndex, Dify, and n8n.
 
 ---
 

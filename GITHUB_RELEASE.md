@@ -38,6 +38,13 @@ safeai scan /path/to/project --html report.html
 - Microsoft Agent
 - Azure AI Foundry
 - Bedrock Agent
+- Claude Code (early preview)
+- Google ADK (early preview)
+- Mastra (early preview)
+- Haystack (early preview)
+- LlamaIndex (early preview)
+- Dify (early preview)
+- n8n (early preview)
 
 ### Output Formats
 

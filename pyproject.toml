@@ -42,6 +42,10 @@ Issues = "https://github.com/ikaruscareer/SafeAI/issues"
 [project.scripts]
 safeai = "safeai.cmd.cli:main"
 
+# Third-party parser packages can expose classes through this group.
+# Built-in parsers are loaded directly by safeai.frameworks.
+[project.entry-points."safeai.parsers"]
+
 [tool.setuptools.packages.find]
 include = ["safeai*"]
 

@@ -16,6 +16,13 @@ This document details the detection approach, discovered artifacts, capabilities
 | Microsoft Agent Framework | AST + config + deps + regex | Agents, workflows, tools, memory, models | Cloud, memory | Early Preview |
 | Azure AI Foundry | Configuration | Tools, models from YAML | Cloud | Early Preview |
 | Bedrock Agent | Configuration | Tools from JSON | (minimal) | Early Preview |
+| Claude Code | CLAUDE.md + .claude config | Agents, tools, models, MCP references | Shell, filesystem, MCP | Early Preview |
+| Google ADK | AST + imports | Agents, workflows, tools, models | External APIs | Early Preview |
+| Mastra | AST + imports | Agents, workflows, tools, models | Multi-agent, RAG, external APIs | Early Preview |
+| Haystack | AST + imports | Pipelines, agents, tools, generators | RAG, external APIs, browser | Early Preview |
+| LlamaIndex | AST + imports | Agents, tools, indexes, models | RAG, databases, external APIs | Early Preview |
+| Dify | YAML/JSON + references | Workflows, agents, tools, models | Shell, databases, external APIs | Early Preview |
+| n8n | Workflow JSON + references | Workflows, nodes, connections | Shell, databases, email, external APIs | Early Preview |
 
 ---
 

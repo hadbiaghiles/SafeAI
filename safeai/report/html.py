@@ -43,6 +43,9 @@ def write_html(report, path):
     counts = report.get("counts", {})
     frameworks = report.get("detected_frameworks", [])
     findings = report.get("findings", [])
+    components = report.get("components", [])
+    diagnostics = report.get("diagnostics", [])
+    capability_diff = report.get("capability_diff", {})
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     capability_rows = []
@@ -94,7 +97,7 @@ def write_html(report, path):
       <div class='muted'>Generated {escape(now)}</div>
       <div class='grid'>
         <div class='card'><h3>Executive Summary</h3><div>Files Scanned: {report.get('files_scanned', 0)}</div><div>Findings: {len(findings)}</div><div>Overall AI Risk Score: {trust.get('overall_ai_risk_score', 'N/A')}</div></div>
-        <div class='card'><h3>Detected Frameworks</h3><div>{escape(', '.join(frameworks) if frameworks else 'None')}</div><div class='muted'>MCP Assets: {len(report.get('mcp_assets', []))}</div></div>
+         <div class='card'><h3>Detected Frameworks</h3><div>{escape(', '.join(frameworks) if frameworks else 'None')}</div><div class='muted'>MCP Assets: {len(report.get('mcp_assets', []))}</div><div class='muted'>Components: {len(components)}</div><div class='muted'>Diagnostics: {len(diagnostics)}</div><div class='muted'>Capability diff: {escape(str(capability_diff.get('counts', 'N/A')))}</div></div>
         <div class='card'><h3>Risk Summary</h3><div>Critical: {counts.get('critical', 0)}</div><div>High: {counts.get('high', 0)}</div><div>Medium: {counts.get('medium', 0)}</div></div>
       </div>
     </section>

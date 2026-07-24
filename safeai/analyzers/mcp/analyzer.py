@@ -294,6 +294,85 @@ class MCPAnalyzer:
                         affected_object="tools",
                     ))
 
+                # --- Per-tool deep analysis ---
+                for tool_def in asset["tools"]:
+                    tool_name = ""
+                    tool_desc = ""
+                    tool_params = ""
+                    if isinstance(tool_def, dict):
+                        tool_name = str(tool_def.get("name", ""))
+                        tool_desc = str(tool_def.get("description", ""))
+                        tool_params = json.dumps(tool_def.get("parameters", tool_def.get("input_schema", "")), default=str)
+                    elif isinstance(tool_def, str):
+                        tool_name = tool_def
+
+                    full_tool_text = f"{tool_name} {tool_desc} {tool_params}"
+
+                    # Overly broad tool: wildcards or unrestricted patterns
+                    if re.search(r"\*|all|any|unrestricted|no.limit|bypass", tool_params, flags=re.I):
+                        findings.append(_base_finding(
+                            "MCP_TOOL_OVERLY_BROAD",
+                            "high",
+                            f"MCP tool '{tool_name}' has overly broad parameter definition",
+                            path,
+                            1,
+                            capability="MCP",
+                            evidence=full_tool_text[:200],
+                            reason="Overly broad parameters allow unrestricted tool invocation.",
+                            remediation="Constrain parameter schemas with enums, patterns, and max values.",
+                            score_contribution=12,
+                            schema_version=schema_version,
+                            validation_rule="tool_parameter_scope",
+                            affected_object=tool_name,
+                        ))
+
+                # --- Per-resource sensitive data analysis ---
+                for resource in asset["resources"]:
+                    resource_text = json.dumps(resource, default=str) if isinstance(resource, dict) else str(resource)
+                    if re.search(r"password|secret|credential|token|private|ssn|credit.card|api.key", resource_text, flags=re.I):
+                        findings.append(_base_finding(
+                            "MCP_RESOURCE_SENSITIVE",
+                            "high",
+                            "MCP resource may expose sensitive data",
+                            path,
+                            1,
+                            capability="Identity",
+                            evidence=resource_text[:200],
+                            reason="Sensitive data patterns in MCP resources increase exfiltration risk.",
+                            remediation="Restrict resource access and redact sensitive fields.",
+                            score_contribution=14,
+                            schema_version=schema_version,
+                            validation_rule="resource_sensitivity",
+                            affected_object="resources",
+                        ))
+
+                # --- Transport security ---
+                transport_text = json.dumps(asset["transports"], default=str)
+                # Flag insecure transports (not https). Also flag if only
+                # unencrypted transports are configured with no TLS at all.
+                transport_vals = [str(t).lower() for t in asset["transports"]]
+                has_https = any("https" in v for v in transport_vals)
+                has_insecure = any(
+                    re.match(r"http://|ws://|stdio|tcp://", v, flags=re.I)
+                    for v in transport_vals
+                )
+                if has_insecure or (transport_vals and not has_https):
+                    findings.append(_base_finding(
+                        "MCP_TRANSPORT_INSECURE",
+                        "high",
+                        "MCP transport uses insecure protocol",
+                        path,
+                        1,
+                        capability="External APIs",
+                        evidence=transport_text,
+                        reason="Unencrypted transports expose MCP traffic to interception.",
+                        remediation="Use HTTPS/WSS for all MCP transports.",
+                        score_contribution=13,
+                        schema_version=schema_version,
+                        validation_rule="transport_security",
+                        affected_object="transports",
+                    ))
+
                 cap_source_text = " ".join([
                     json.dumps(asset["tools"], default=str),
                     json.dumps(asset["resources"], default=str),

@@ -16,6 +16,7 @@ import logging
 import os
 
 from safeai.analysis.aggregation import aggregate_capabilities, aggregate_parser_models
+from safeai.analysis.components import extract_components
 from safeai.analysis.import_graph import build_import_graph, module_name_from_path
 from safeai.analysis.project_graph import build_project_graph
 from safeai.analysis.semantic import build_semantic_document
@@ -23,14 +24,7 @@ from safeai.analyzers.capability.analyzer import CapabilityAnalyzer
 from safeai.analyzers.data_leakage.analyzer import DataLeakageAnalyzer
 from safeai.analyzers.mcp.analyzer import MCPAnalyzer
 from safeai.analyzers.prompt.analyzer import PromptAnalyzer
-from safeai.frameworks.azure_foundry.parser import AzureFoundryParser
-from safeai.frameworks.bedrock_agent.parser import BedrockAgentParser
-from safeai.frameworks.crewai.parser import CrewAIParser
-from safeai.frameworks.langchain.parser import LangChainParser
-from safeai.frameworks.langgraph.parser import LangGraphParser
-from safeai.frameworks.microsoft_agent.parser import MicrosoftAgentFrameworkParser
-from safeai.frameworks.openai_agents.parser import OpenAIAgentsParser
-from safeai.frameworks.semantic_kernel.parser import SemanticKernelParser
+from safeai.frameworks import discover_parsers
 from safeai.rules.loader import load_rules
 from safeai.scoring.engine import score_report
 
@@ -52,13 +46,21 @@ EXCLUDED_DIRS = {
 MAX_FILE_BYTES = 2 * 1024 * 1024
 
 
+def _is_scannable_file(filename):
+    """Return whether a file is source, configuration, or AI instructions."""
+    lower = filename.lower()
+    if lower.endswith((".py", ".json", ".yaml", ".yml", ".prompt")):
+        return True
+    return lower in {"claude.md", "prompt.md", "system_prompt.md"} or lower.endswith((".prompt.md", ".prompt.txt"))
+
+
 def collect_files(root):
     """Collect scannable files, pruning excluded directories and oversized files."""
     files = []
     for d, dirs, fs in os.walk(root):
         dirs[:] = [name for name in dirs if name not in EXCLUDED_DIRS]
         for f in fs:
-            if not f.endswith((".py", ".json", ".yaml", ".yml")):
+            if not _is_scannable_file(f):
                 continue
             full = os.path.join(d, f)
             try:
@@ -112,11 +114,20 @@ def extract_dependencies(paths):
                 "openai-agents",
                 "azure-ai-agents",
                 "azure-ai-projects",
+                "google-adk",
+                "haystack-ai",
+                "llama-index",
+                "mastra",
+                "dify",
+                "n8n",
             ]:
                 if token in low:
                     deps.add(token)
         elif path.endswith("package.json"):
-            for token in ["langchain", "openai", "@azure/ai-projects", "@microsoft/agents"]:
+            for token in [
+                "langchain", "openai", "@azure/ai-projects", "@microsoft/agents",
+                "@mastra/core", "n8n",
+            ]:
                 if token in low:
                     deps.add(token)
     return deps
@@ -140,23 +151,14 @@ def _relativize(path, root):
     return rel.replace("\\", "/")
 
 
-def run_scan(directory, rules_dir=None):
+def run_scan(directory, rules_dir=None, baseline_report=None):
     directory = os.path.abspath(directory)
     files = collect_files(directory)
     logger.info("Collected %d scannable files in %s", len(files), directory)
     rules = load_rules(rules_dir)
     deps = extract_dependencies(collect_dependency_files(directory))
 
-    parsers = [
-        LangGraphParser(),
-        CrewAIParser(),
-        LangChainParser(),
-        SemanticKernelParser(),
-        OpenAIAgentsParser(),
-        MicrosoftAgentFrameworkParser(),
-        BedrockAgentParser(),
-        AzureFoundryParser(),
-    ]
+    parsers = discover_parsers()
 
     agent_models = []
     findings = []
@@ -219,6 +221,11 @@ def run_scan(directory, rules_dir=None):
                     detected_frameworks.append(framework)
                 framework_methods.setdefault(framework, set()).add(parsed.get("discovery_method", "regex"))
 
+    # --- Phase 1.5: component-level extraction ---
+    diagnostics = []
+    components = extract_components(files, file_cache, semantic_docs, diagnostics=diagnostics)
+    logger.info("Extracted %d AI components", len(components))
+
     unified_models = aggregate_parser_models(parser_results_by_file)
     logger.info("Detected frameworks: %s", ", ".join(detected_frameworks) or "none")
 
@@ -230,6 +237,23 @@ def run_scan(directory, rules_dir=None):
     analyzers = [CapabilityAnalyzer(), PromptAnalyzer(), DataLeakageAnalyzer(), MCPAnalyzer()]
     for analyzer in analyzers:
         findings.extend(analyzer.run(file_cache, rules, agent_models))
+
+    # --- Phase 1.5: component-level analyzers ---
+    from safeai.analyzers.model_config.analyzer import ModelConfigAnalyzer
+    from safeai.analyzers.prompt_file.analyzer import PromptFileAnalyzer
+    from safeai.analyzers.skill.analyzer import SkillAnalyzer
+    from safeai.analyzers.tool_def.analyzer import ToolDefAnalyzer
+    from safeai.analyzers.workflow.analyzer import WorkflowAnalyzer
+
+    component_analyzers = [
+        SkillAnalyzer(),
+        PromptFileAnalyzer(),
+        ToolDefAnalyzer(),
+        ModelConfigAnalyzer(),
+        WorkflowAnalyzer(),
+    ]
+    for analyzer in component_analyzers:
+        findings.extend(analyzer.run(file_cache, rules, agent_models, components=components))
     logger.info("Analysis produced %d findings", len(findings))
 
     mcp_assets = []
@@ -246,7 +270,6 @@ def run_scan(directory, rules_dir=None):
             counts[sev] = 0
         counts[sev] += 1
 
-    project_graph = build_project_graph(agent_models, mcp_assets=mcp_assets)
     trust_score = score_report(findings)
 
     # Normalize all paths in the report to be relative to the scanned root so
@@ -262,8 +285,13 @@ def run_scan(directory, rules_dir=None):
         asset["file"] = _relativize(asset.get("file"), directory)
     for model in unified_models:
         model["file"] = _relativize(model.get("file"), directory)
+    for component in components:
+        component["file"] = _relativize(component.get("file"), directory)
+    for diagnostic in diagnostics:
+        diagnostic["file"] = _relativize(diagnostic.get("file"), directory)
+    project_graph = build_project_graph(agent_models, mcp_assets=mcp_assets, components=components)
 
-    return {
+    report = {
         "findings": findings,
         "counts": counts,
         "files_scanned": len(files),
@@ -281,5 +309,12 @@ def run_scan(directory, rules_dir=None):
         "project_graph": project_graph,
         "mcp_assets": mcp_assets,
         "mcp_capabilities": mcp_capabilities,
+        "components": components,
+        "diagnostics": diagnostics,
         "trust_score": trust_score,
     }
+    if baseline_report is not None:
+        from safeai.analysis.capability_diff import compute_capability_diff
+
+        report["capability_diff"] = compute_capability_diff(report, baseline_report)
+    return report

@@ -6,6 +6,7 @@ Usage::
 """
 
 import argparse
+import json
 import logging
 import sys
 from safeai.engine.scan import run_scan
@@ -23,6 +24,7 @@ def main(argv=None):
     scan.add_argument("--rules")
     scan.add_argument("--fail-on", default="critical", choices=["critical", "high", "medium"])
     scan.add_argument("--verbose", action="store_true")
+    scan.add_argument("--baseline", help="Prior JSON report for capability diff")
 
     args = parser.parse_args(argv)
 
@@ -32,7 +34,15 @@ def main(argv=None):
             format="[%(levelname)s] %(name)s: %(message)s",
         )
 
-        report = run_scan(args.directory, args.rules)
+        baseline = None
+        if args.baseline:
+            try:
+                with open(args.baseline, encoding="utf-8") as fh:
+                    baseline = json.load(fh)
+            except (OSError, json.JSONDecodeError) as exc:
+                parser.error(f"Unable to read baseline report: {exc}")
+
+        report = run_scan(args.directory, args.rules, baseline_report=baseline)
 
         if args.sarif:
             from safeai.report.sarif import write_sarif

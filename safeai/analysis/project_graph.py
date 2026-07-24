@@ -6,7 +6,7 @@ assets, and external services discovered across every scanned file.
 """
 
 
-def build_project_graph(agent_models, mcp_assets=None):
+def build_project_graph(agent_models, mcp_assets=None, components=None):
     graph = {
         "projects": 1,
         "frameworks": {},
@@ -18,6 +18,8 @@ def build_project_graph(agent_models, mcp_assets=None):
         "capabilities": [],
         "mcp_assets": mcp_assets or [],
         "external_services": [],
+        "components": [],
+        "component_counts": {},
     }
 
     for model in agent_models:
@@ -42,5 +44,10 @@ def build_project_graph(agent_models, mcp_assets=None):
                 graph[target].extend(values)
             elif values:
                 graph[target].append(values)
+
+    for component in components or []:
+        component_type = component.get("type", "unknown")
+        graph["components"].append(component)
+        graph["component_counts"][component_type] = graph["component_counts"].get(component_type, 0) + 1
 
     return graph

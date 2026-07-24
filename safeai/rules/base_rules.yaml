@@ -62,3 +62,120 @@
   description: Autonomous agent behavior (loops/planning)
   severity: high
   owasp_llm: LLM06
+
+# --- Phase 1.5: AI Component Security rules ---
+
+- id: SKILL_EMBEDDED_PROMPT
+  description: Skill file contains an embedded prompt
+  severity: medium
+  owasp_llm: LLM01
+
+- id: SKILL_EXCESSIVE_PERMISSIONS
+  description: Skill declares excessive or dangerous permissions
+  severity: high
+  owasp_llm: LLM06
+
+- id: SKILL_HARDCODED_SECRET
+  description: Hardcoded secret found inside a skill file
+  severity: critical
+  owasp_llm: LLM02
+
+- id: SKILL_INSECURE_DEFAULT
+  description: Skill uses an insecure default configuration
+  severity: medium
+  owasp_llm: LLM06
+
+- id: SKILL_RISKY_CAPABILITY
+  description: Skill grants a risky capability (shell, exec, write)
+  severity: high
+  owasp_llm: LLM06
+
+- id: PROMPT_FILE_INJECTION
+  description: Prompt file contains injection-prone pattern
+  severity: critical
+  owasp_llm: LLM01
+
+- id: PROMPT_FILE_SYSTEM_LEAK
+  description: Prompt file exposes system prompt content
+  severity: high
+  owasp_llm: LLM01
+
+- id: PROMPT_FILE_ROLE_OVERRIDE
+  description: Prompt file contains role-override or jailbreak language
+  severity: high
+  owasp_llm: LLM01
+
+- id: PROMPT_FILE_UNTRUSTED_PLACEHOLDER
+  description: Prompt file contains untrusted input placeholder
+  severity: high
+  owasp_llm: LLM01
+
+- id: TOOL_MISSING_VALIDATION
+  description: Tool function lacks input validation
+  severity: medium
+  owasp_llm: LLM06
+
+- id: TOOL_DANGEROUS_PARAMS
+  description: Tool function accepts dangerous parameter patterns
+  severity: high
+  owasp_llm: LLM06
+
+- id: TOOL_EXCESSIVE_PERMISSIONS
+  description: Tool definition grants excessive permissions
+  severity: high
+  owasp_llm: LLM06
+
+- id: TOOL_SHELL_ACCESS
+  description: Tool function invokes shell execution
+  severity: high
+  owasp_llm: LLM06
+
+- id: MODEL_UNSAFE_TEMPERATURE
+  description: Model temperature set to a risky value (>1.0)
+  severity: medium
+  owasp_llm: LLM06
+
+- id: MODEL_MISSING_CONTENT_FILTER
+  description: Model configuration lacks content filters or safety settings
+  severity: medium
+  owasp_llm: LLM06
+
+- id: MODEL_DISABLED_SAFETY
+  description: Model safety settings explicitly disabled
+  severity: high
+  owasp_llm: LLM06
+
+- id: WORKFLOW_NO_APPROVAL
+  description: Workflow lacks human approval / gate steps
+  severity: medium
+  owasp_llm: LLM06
+
+- id: WORKFLOW_INSECURE_DEFAULT
+  description: Workflow template uses insecure defaults
+  severity: medium
+  owasp_llm: LLM06
+
+- id: WORKFLOW_CAPABILITY_SPRAWL
+  description: Workflow grants excessive capabilities without scoping
+  severity: high
+  owasp_llm: LLM06
+
+- id: WORKFLOW_MISSING_VALIDATION
+  description: Workflow steps lack input validation
+  severity: medium
+  owasp_llm: LLM06
+
+- id: MCP_TOOL_OVERLY_BROAD
+  description: MCP tool definition is overly broad or unrestricted
+  severity: high
+  owasp_llm: LLM06
+
+- id: MCP_RESOURCE_SENSITIVE
+  description: MCP resource exposes sensitive data patterns
+  severity: high
+  owasp_llm: LLM02
+
+- id: MCP_TRANSPORT_INSECURE
+  description: MCP transport uses insecure protocol
+  severity: high
+  owasp_llm: LLM06
