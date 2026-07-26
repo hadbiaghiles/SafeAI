@@ -2,181 +2,184 @@
 
 Welcome, and thank you for considering contributing to SafeAI!
 
-This document lists **40 beginner-friendly issues** designed for first-time contributors. Each issue includes the files you'll need to modify, the tests you should write, and the acceptance criteria.
+This document lists **29 beginner-friendly issues** designed for first-time contributors. Each issue includes the files you'll need to modify, the tests you should write, and the acceptance criteria.
 
 > **For maintainers:** These issues are defined in `.github/good-first-issues/` as YAML templates. Run the [create-good-first-issues workflow](../../actions/workflows/create-good-first-issues.yml) to create them in the GitHub issue tracker with the `good first issue` label. Once created, this file serves as a curated index.
+
+> **14 issues have already been completed** by community contributors. See the [Completed Issues](#-completed-issues) section at the bottom.
 
 ---
 
 ## Framework Adapters
 
-### 1. Add Google ADK detector
-- **Difficulty:** Easy | **Effort:** 2–3 hours
-- **Description:** Detect the Google Agent Development Kit (ADK) by scanning Python imports (`from google.adk import`) and configuration files.
-- **Suggested files:** `safeai/frameworks/google_adk/parser.py`
-- **Suggested tests:** `tests/test_google_adk.py`
-- **Suggested docs:** Update `FRAMEWORK_SUPPORT.md`, add entry to `README.md` supported frameworks table
-
-### 2. Add Mastra detector
-- **Difficulty:** Easy | **Effort:** 2–3 hours
-- **Suggested files:** `safeai/frameworks/mastra/parser.py`
-- **Suggested tests:** `tests/test_mastra.py`
-
-### 3. Add Haystack detector
-- **Difficulty:** Easy | **Effort:** 2–3 hours
-- **Suggested files:** `safeai/frameworks/haystack/parser.py`
-- **Suggested tests:** `tests/test_haystack.py`
-
-### 4. Add AutoGen detector
+### 1. Add AutoGen detector
 - **Difficulty:** Easy | **Effort:** 2–3 hours
 - **Suggested files:** `safeai/frameworks/autogen/parser.py`
 - **Suggested tests:** `tests/test_autogen.py`
+- **Description:** Detect Microsoft AutoGen framework by scanning Python imports (`from autogen import`). Follow the pattern used by existing parsers (Google ADK, Mastra, etc.) — AST import detection, agent/tool/model extraction, and registration via `@register_parser`.
 
-### 5. Add n8n workflow detector
-- **Difficulty:** Easy | **Effort:** 2–3 hours
-- **Suggested files:** `safeai/frameworks/n8n/parser.py`
-
-### 6. Improve CrewAI parser — extract tool definitions
-- **Difficulty:** Medium | **Effort:** 3–4 hours
-- **Suggested files:** `safeai/frameworks/crewai/parser.py`
-- **Suggested tests:** Extend `tests/test_parser_aggregation.py`
-
-### 7. Improve LangGraph parser — detect conditional edges
+### 2. Improve LangGraph parser — detect conditional edges
 - **Difficulty:** Medium | **Effort:** 3–4 hours
 - **Suggested files:** `safeai/frameworks/langgraph/parser.py`
-
-### 8. Add Dify detector
-- **Difficulty:** Easy | **Effort:** 2–3 hours
-- **Suggested files:** `safeai/frameworks/dify/parser.py`
+- **Status:** Partially done — regular `add_edge` calls are detected; `add_conditional_edges` is not yet handled
+- **Description:** Extend the LangGraph parser to detect `add_conditional_edges()` calls. Currently the `endswith("add_edge")` check misses the conditional variant (`add_conditional_edges`). Update both the AST detection and regex fallback to capture conditional routing edges.
 
 ---
 
 ## Capability Detection
 
-### 9. Detect Microsoft Teams integration
+### 3. Detect Microsoft Teams integration
 - **Difficulty:** Easy | **Effort:** 2–3 hours
 - **Suggested files:** `safeai/analyzers/capability/analyzer.py`, `safeai/analysis/capabilities.py`
+- **Description:** Add a regex pattern to detect Microsoft Teams SDK usage (`import teams`, `from teams import`, `TeamsClient`, etc.). Follow the same pattern as the existing Docker, Slack, and Jira detectors.
 
-### 10. Detect SharePoint access
+### 4. Detect SharePoint access
 - **Difficulty:** Easy | **Effort:** 2 hours
+- **Description:** Add a regex pattern for SharePoint Python SDK (`office365`, `sharepoint`, `ClientContext`). This is deferred from the initial capability detection batch and requires MCP-based detection consideration.
 
-### 11. Detect OneDrive access
+### 5. Detect OneDrive access
 - **Difficulty:** Easy | **Effort:** 2 hours
+- **Description:** Similar to SharePoint — detect OneDrive SDK references (`onedrive`, `OneDriveClient`). May share detection logic with the SharePoint detector.
 
-### 12. Detect Docker capability
-- **Difficulty:** Easy | **Effort:** 2–3 hours
-- **Suggested files:** `safeai/analyzers/capability/analyzer.py`, `safeai/analysis/capabilities.py`
-
-### 13. Detect Kubernetes capability
-- **Difficulty:** Easy | **Effort:** 2–3 hours
-
-### 14. Detect Redis capability
+### 6. Split browser automation into separate rules
 - **Difficulty:** Easy | **Effort:** 2 hours
-
-### 15. Detect S3 / cloud storage access
-- **Difficulty:** Easy | **Effort:** 2 hours
-
-### 16. Detect GCP / Google Cloud services
-- **Difficulty:** Easy | **Effort:** 2 hours
-
-### 17. Detect Slack integration
-- **Difficulty:** Easy | **Effort:** 2 hours
-
-### 18. Detect Jira integration
-- **Difficulty:** Easy | **Effort:** 2 hours
-
-### 19. Detect browser automation capability
-- **Difficulty:** Easy | **Effort:** 2 hours
+- **Suggested files:** `safeai/analyzers/capability/analyzer.py`, `safeai/rules/base_rules.yaml`
+- **Description:** The current `CAP_browser` pattern groups Playwright, Selenium, Puppeteer, and `browser_use` under one rule. Split into separate rules (`CAP_browser_playwright`, `CAP_browser_selenium`, etc.) for finer granularity. Community feedback suggests this would improve rule specificity.
 
 ---
 
 ## Prompt Rules
 
-### 20. Detect unsafe prompt instruction patterns
+### 7. Detect unsafe prompt instruction patterns
 - **Difficulty:** Easy | **Effort:** 2–3 hours
 - **Suggested files:** `safeai/analyzers/prompt/analyzer.py`, `safeai/rules/base_rules.yaml`
 
-### 21. Detect unrestricted instruction overrides
+### 8. Detect unrestricted instruction overrides
 - **Difficulty:** Easy | **Effort:** 2 hours
 
-### 22. Detect hidden system prompt injection
+### 9. Detect hidden system prompt injection
 - **Difficulty:** Medium | **Effort:** 3–4 hours
 
-### 23. Detect prompt extraction attempts
+### 10. Detect prompt extraction attempts
 - **Difficulty:** Medium | **Effort:** 3–4 hours
 
 ---
 
 ## Governance Signals
 
-### 24. Detect timeout configuration
+### 11. Detect timeout configuration
+- **Difficulty:** Easy | **Effort:** 2 hours
+- **Description:** Scan agent configs and code for timeout settings that are missing, too long, or set to infinite. Flag as a governance gap.
+
+### 12. Detect retry policy configuration
 - **Difficulty:** Easy | **Effort:** 2 hours
 
-### 25. Detect retry policy configuration
-- **Difficulty:** Easy | **Effort:** 2 hours
-
-### 26. Detect approval workflow requirement
+### 13. Detect approval workflow requirement
 - **Difficulty:** Medium | **Effort:** 3–4 hours
 
-### 27. Detect audit logging configuration
+### 14. Detect audit logging configuration
 - **Difficulty:** Medium | **Effort:** 3–4 hours
 
-### 28. Detect rate limiting configuration
+### 15. Detect rate limiting configuration
 - **Difficulty:** Easy | **Effort:** 2 hours
 
 ---
 
-## Reports
+## Reports & Output
 
-### 29. Improve HTML report — add filtering and search
+### 16. Improve terminal output readability
+- **Difficulty:** Easy | **Effort:** 3–4 hours
+- **Suggested files:** `safeai/report/terminal.py`
+- **Description:** Restructure the terminal scan summary to be more readable. Community feedback highlights that the current output is functional but hard to scan quickly. Improvements could include severity-grouped findings, better section headers, color coding, and clearer signal-to-noise ratio. See the existing HTML report for design inspiration.
+
+### 17. Improve HTML report — add filtering and search
 - **Difficulty:** Medium | **Effort:** 4–6 hours
 - **Suggested files:** `safeai/report/html.py`
 
-### 30. Improve SARIF output — add code flow
+### 18. Improve SARIF output — add code flow
 - **Difficulty:** Medium | **Effort:** 3–4 hours
 - **Suggested files:** `safeai/report/sarif.py`
 
-### 31. Add Markdown report generator
+### 19. Add Markdown report generator
 - **Difficulty:** Easy | **Effort:** 3–4 hours
 - **Suggested files:** `safeai/report/markdown.py`
 
-### 32. Improve JSON schema — add versioning
+### 20. Improve JSON schema — add versioning
 - **Difficulty:** Easy | **Effort:** 2 hours
 - **Suggested files:** `safeai/report/json_report.py`
 
-### 33. Add dependency graph visualization in HTML
+### 21. Add dependency graph visualization in HTML
 - **Difficulty:** Medium | **Effort:** 4–6 hours
 - **Suggested files:** `safeai/report/html.py`
 
-### 34. Add CSV report generator
+### 22. Add CSV report generator
 - **Difficulty:** Easy | **Effort:** 2 hours
 - **Suggested files:** `safeai/report/csv_report.py`
 
 ---
 
+## Scoring & Trust Score
+
+### 23. Tune trust score weighting for critical and high findings
+- **Difficulty:** Easy | **Effort:** 2–3 hours
+- **Suggested files:** `safeai/scoring/engine.py`
+- **Description:** Community feedback suggests giving more weight to critical and high-severity findings in the trust score calculation. Currently all categories have equal weight (1.0). Evaluate and adjust `CATEGORY_WEIGHTS` and `SEVERITY_POINTS` in `safeai/scoring/engine.py` to reflect higher impact of critical/high findings, then validate with existing test fixtures.
+
+---
+
 ## Documentation
 
-### 35. Improve architecture diagram
+### 24. Improve architecture diagram
 - **Difficulty:** Easy | **Effort:** 2 hours
 - **Suggested files:** `ARCHITECTURE_FOR_CONTRIBUTORS.md`
 
-### 36. Add framework-specific documentation page
+### 25. Add framework-specific documentation page
 - **Difficulty:** Easy | **Effort:** 3–4 hours
 
-### 37. Improve installation guide for Windows users
+### 26. Improve installation guide for Windows users
 - **Difficulty:** Easy | **Effort:** 2 hours
 - **Suggested files:** `USER_GUIDE.md`
 
-### 38. Add FAQ with common troubleshooting scenarios
+### 27. Add FAQ with common troubleshooting scenarios
 - **Difficulty:** Easy | **Effort:** 2–3 hours
 - **Suggested files:** `USER_GUIDE.md`
 
-### 39. Add glossary of terms
+### 28. Add glossary of terms
 - **Difficulty:** Easy | **Effort:** 2 hours
 - **Suggested files:** `GLOSSARY.md`
 
-### 40. Create video or animated GIF guide for scan workflow
+### 29. Create video or animated GIF guide for scan workflow
 - **Difficulty:** Medium | **Effort:** 4–6 hours
+
+---
+
+## ✅ Completed Issues
+
+These issues have been implemented by community contributors and are now part of the main codebase.
+
+### Framework Adapters
+
+| # | Issue | Contributor |
+|---|-------|-------------|
+| 1 | Add Google ADK detector | ikaruscareer |
+| 2 | Add Mastra detector | ikaruscareer |
+| 3 | Add Haystack detector | ikaruscareer |
+| 5 | Add n8n workflow detector | ikaruscareer |
+| 6 | Improve CrewAI parser — extract tool definitions | ikaruscareer |
+| 8 | Add Dify detector | ikaruscareer |
+
+### Capability Detection
+
+| # | Issue | Contributor |
+|---|-------|-------------|
+| 12 | Detect Docker capability | @yugaaank (PR #2) |
+| 13 | Detect Kubernetes capability | @yugaaank (PR #2) |
+| 14 | Detect Redis capability | @yugaaank (PR #2) |
+| 15 | Detect S3 / cloud storage access | @yugaaank (PR #2) |
+| 16 | Detect GCP / Google Cloud services | @yugaaank (PR #2) |
+| 17 | Detect Slack integration | @yugaaank (PR #2) |
+| 18 | Detect Jira integration | @yugaaank (PR #2) |
+| 19 | Detect browser automation capability | @yugaaank (PR #2) |
 
 ---
 

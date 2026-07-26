@@ -8,46 +8,68 @@ This document describes the planned roadmap across five phases. Phases are not s
 
 ## Phase 1 — Static AI Risk Scanner (OSS)
 
-*Current state — Phase 1 stabilization complete; framework depth remains in active development.*
+*Current state — Phase 1 scope substantially complete; Phase 1.5 stabilization and community-driven depth improvements ongoing.*
 
-**Scope:** Framework, agent, workflow, prompt, tool, skill, model, memory, MCP, identity, and integration discovery.
+**Static analyzers implemented:**
 
-**Static analyzers for:**
-- Capabilities — shell, filesystem, network, database, code execution
-- Prompts — injection patterns, delimiter issues, system leaks, role overrides
-- Tools — agent-bound tool definitions and their risk profiles
-- Memory — checkpointer and memory object usage
-- Workflows — workflow composition and execution paths
-- Identities — credential and secret exposure
-- Models — LLM provider references
-- Autonomy — loop detection, unbounded execution
-- Governance signals — auth, permissions, audit configurations
-- Heuristic data flows — untrusted input propagation into prompts
+| Analyzer | Coverage | Status |
+|----------|----------|--------|
+| **Capabilities** | Shell, filesystem, HTTP, database, code execution, Docker, K8s, Redis, S3, Slack, Jira, browser automation, GCP | ✅ |
+| **Prompts** | Injection patterns, delimiter issues, system leaks, role overrides, untrusted placeholders | ✅ |
+| **Tools** | Agent-bound tool definitions, missing validation, dangerous params, shell access, excessive permissions | ✅ |
+| **Memory** | Checkpointer and memory object usage (framework parsers) | ✅ |
+| **Workflows** | Composition, approval gaps, insecure defaults, capability sprawl | ✅ |
+| **Identities** | Credential and secret exposure (hardcoded secrets, env references) | ✅ |
+| **Models** | LLM provider references, unsafe temperature, missing content filters, disabled safety | ✅ |
+| **Autonomy** | Loop detection, unbounded execution | ✅ |
+| **MCP** | Schema validation (v1.0/v1.1), auth gaps, exposed endpoints, tool misuse, sensitive resources, insecure transports | ✅ |
 
-**Outputs:** JSON, HTML, SARIF 2.1.0, capability graph, and trust score. Capability diff remains planned.
+**Outputs implemented:** JSON, HTML, SARIF 2.1.0, capability graph (project_graph), trust score, capability diff (`--baseline`)
+
+**Still planned in Phase 1:**
+
+- **Governance signals** — timeout, retry policy, approval workflow, audit logging, rate limiting detection
+- **Heuristic data flows** — deeper untrusted input propagation into prompts
+- **PR capability escalation diff** — automatically compare a PR branch's capabilities against the base branch, flagging newly introduced shell, network, filesystem, or write access. Building on the existing `--baseline` diff.
+- **Governed finding suppressions** — every suppression carries rule_id, file, location, reason, owner, and expiry. CI fails when code moves or waiver expires. Stale-detection for forgotten suppressions.
+- **Better terminal output** — structured, readable scan summary with severity grouping, improved layout, and clearer signal-to-noise ratio
+- **Trust score improvements** — weighted scoring giving higher impact to critical and high-severity findings
 
 ---
 
-## Phase 1.5 — AI Component Security
+## Phase 1.5 — AI Component Security (Stabilization)
 
-Deep analysis of reusable AI artifacts:
+*Partially complete — deep component analysis shipped in v1.1.0-beta; continued refinements.*
 
-| Artifact | Analysis Focus |
-|----------|---------------|
-| **Skills** | Embedded prompts, excessive permissions, risky capabilities |
-| **Prompts** | Injection resistance, system prompt exposure, role isolation |
-| **MCP servers** | Auth gaps, endpoint exposure, tool misuse potential |
-| **Workflow templates** | Insecure defaults, capability sprawl, approval gaps |
-| **Tool definitions** | Overly broad permissions, missing validation, shell access |
-| **Model configurations** | Unsafe parameters, lack of content filters |
+**Artifact analysis implemented:**
 
-Detect embedded prompts, hardcoded secrets, excessive permissions, insecure defaults, and risky component compositions.
+| Artifact | Analysis Focus | Status |
+|----------|---------------|--------|
+| **Skills** | Embedded prompts, excessive permissions, risky capabilities, insecure defaults, hardcoded secrets | ✅ |
+| **Prompts** | Injection resistance, system prompt exposure, role isolation, untrusted input | ✅ |
+| **MCP servers** | Auth gaps, endpoint exposure, tool misuse, sensitive resources, insecure transports | ✅ |
+| **Workflow templates** | Insecure defaults, capability sprawl, approval gaps, missing validation | ✅ |
+| **Tool definitions** | Overly broad permissions, missing validation, shell access, dangerous params | ✅ |
+| **Model configurations** | Unsafe parameters, content filter enforcement (provider-aware), disabled safety | ✅ |
 
-Remains **offline and static** — no reputation services or vulnerability feeds at this stage.
+**Framework adapters (15 total):**
 
-The v1.1 stabilization sprint adds normalized component inventories, static
-component diagnostics, provider-aware model checks, and early-preview adapters
-for Claude Code, Google ADK, Mastra, Haystack, LlamaIndex, Dify, and n8n.
+| Tier | Frameworks |
+|------|-----------|
+| Earliest (v1.0) | LangGraph, CrewAI, LangChain, Semantic Kernel, OpenAI Agents SDK, Microsoft Agent, Azure AI Foundry, Bedrock Agent |
+| Phase 1.5 | Claude Code, Google ADK, Mastra, Haystack, LlamaIndex, Dify, n8n |
+
+**Eight new capability detectors:** Docker, Kubernetes, Redis, S3, Slack, Jira, browser automation, GCP
+
+**Still planned in Phase 1.5:**
+
+| Item | Status |
+|------|--------|
+| AutoGen framework adapter | Not yet implemented |
+| LangGraph conditional edge detection | Partially implemented — `add_edge` detected; `add_conditional_edges` not handled |
+| Governance detectors (timeout, retry, audit, rate limiting) | Not yet implemented |
+| Teams, SharePoint, OneDrive detection (MCP-based) | Deferred — requires MCP asset analysis expansion |
+| Split browser automation into separate rules (Playwright, Selenium, browser_use) | Under consideration |
 
 ---
 
