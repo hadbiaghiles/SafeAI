@@ -35,9 +35,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install build tools
-        run: |
-          python -m pip install --upgrade pip
-          pip install build
+        run: pip install --require-hashes -r requirements-build.txt
 
       - name: Build package
         run: python -m build
