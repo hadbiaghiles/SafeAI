@@ -18,7 +18,7 @@ class N8nParser:
 
     def detect(self, path, content, scan_ctx=None):
         low = content.lower()
-        if "n8n" in low or "n8n.io" in low:
+        if "n8n" in low:
             return True
         if path.endswith(".json"):
             try:
