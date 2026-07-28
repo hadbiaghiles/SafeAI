@@ -55,21 +55,25 @@ def _load_external_parsers():
 def discover_parsers(include_external=True):
     """Return a list of all registered parser instances."""
     # Ensure all built-in parsers are imported so they register.
-    from safeai.frameworks.langgraph.parser import LangGraphParser  # noqa: F401
-    from safeai.frameworks.crewai.parser import CrewAIParser  # noqa: F401
-    from safeai.frameworks.langchain.parser import LangChainParser  # noqa: F401
-    from safeai.frameworks.semantic_kernel.parser import SemanticKernelParser  # noqa: F401
-    from safeai.frameworks.openai_agents.parser import OpenAIAgentsParser  # noqa: F401
-    from safeai.frameworks.microsoft_agent.parser import MicrosoftAgentFrameworkParser  # noqa: F401
-    from safeai.frameworks.bedrock_agent.parser import BedrockAgentParser  # noqa: F401
     from safeai.frameworks.azure_foundry.parser import AzureFoundryParser  # noqa: F401
+    from safeai.frameworks.bedrock_agent.parser import BedrockAgentParser  # noqa: F401
     from safeai.frameworks.claude_code.parser import ClaudeCodeParser  # noqa: F401
-    from safeai.frameworks.google_adk.parser import GoogleADKParser  # noqa: F401
-    from safeai.frameworks.mastra.parser import MastraParser  # noqa: F401
-    from safeai.frameworks.haystack.parser import HaystackParser  # noqa: F401
-    from safeai.frameworks.llamaindex.parser import LlamaIndexParser  # noqa: F401
+    from safeai.frameworks.crewai.parser import CrewAIParser  # noqa: F401
     from safeai.frameworks.dify.parser import DifyParser  # noqa: F401
+    from safeai.frameworks.google_adk.parser import GoogleADKParser  # noqa: F401
+    from safeai.frameworks.haystack.parser import HaystackParser  # noqa: F401
+    from safeai.frameworks.langchain.parser import LangChainParser  # noqa: F401
+    from safeai.frameworks.langgraph.parser import LangGraphParser  # noqa: F401
+    from safeai.frameworks.llamaindex.parser import LlamaIndexParser  # noqa: F401
+    from safeai.frameworks.mastra.parser import MastraParser  # noqa: F401
+    from safeai.frameworks.microsoft_agent.parser import (
+        MicrosoftAgentFrameworkParser,  # noqa: F401
+    )
     from safeai.frameworks.n8n.parser import N8nParser  # noqa: F401
+    from safeai.frameworks.openai_agents.parser import OpenAIAgentsParser  # noqa: F401
+    from safeai.frameworks.semantic_kernel.parser import (
+        SemanticKernelParser,  # noqa: F401
+    )
     if include_external:
         _load_external_parsers()
     return [cls() for cls in _PARSER_REGISTRY]

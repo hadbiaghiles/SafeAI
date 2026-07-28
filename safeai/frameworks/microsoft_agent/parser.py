@@ -8,8 +8,13 @@ model references, and cloud model capabilities.
 """
 
 import re
+
 from safeai.analysis.capabilities import dedupe_capabilities, make_capability
-from safeai.analysis.semantic import build_semantic_document, resolve_symbol, resolve_symbol_origin
+from safeai.analysis.semantic import (
+    build_semantic_document,
+    resolve_symbol,
+    resolve_symbol_origin,
+)
 from safeai.frameworks import register_parser
 
 
@@ -34,7 +39,7 @@ class MicrosoftAgentFrameworkParser:
             doc = build_semantic_document(path, content, module_name=module_name)
             imports = list(doc.imports.values()) + [v.rsplit(".", 1)[0] for v in doc.from_imports.values()]
             for imported in imports:
-                if imported.startswith("azure.ai.agents") or imported.startswith("microsoft.agent"):
+                if imported.startswith(("azure.ai.agents", "microsoft.agent")):
                     return True
 
         return "azure.ai.agents" in content or "agentclient" in content.lower()

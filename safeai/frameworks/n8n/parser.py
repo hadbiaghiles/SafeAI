@@ -123,5 +123,5 @@ class N8nParser:
                                 })
 
     def _parse_python(self, content, result, caps):
-        for m in re.finditer(r"n8n", content, re.I):
+        for m in re.finditer(r"n8n", content, re.IGNORECASE):
             result["detection_evidence"].append(f"n8n reference: {m.group(0)}")

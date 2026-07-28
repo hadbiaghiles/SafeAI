@@ -12,17 +12,16 @@ skill configs, custom skill definitions) for security risks:
 import json
 import re
 
-
 _SECRET_RE = re.compile(
     r"api[_-]?key\s*[:=]\s*['\"][^'\"]{8,}['\"]"
     r"|token\s*[:=]\s*['\"][^'\"]{8,}['\"]"
     r"|password\s*[:=]\s*['\"][^'\"]{8,}['\"]"
     r"|secret\s*[:=]\s*['\"][^'\"]{8,}['\"]",
-    re.I,
+    re.IGNORECASE,
 )
 
 _DANGEROUS_PERMISSIONS = {"admin", "root", "sudo", "system", "all", "*", "full_access", "write_all", "execute_all"}
-_RISKY_CAPABILITY_RE = re.compile(r"shell|exec|command|subprocess|os\.system|eval\(|exec\(|file_write|delete", re.I)
+_RISKY_CAPABILITY_RE = re.compile(r"shell|exec|command|subprocess|os\.system|eval\(|exec\(|file_write|delete", re.IGNORECASE)
 
 _PROMPT_KEYS = {"prompt", "system_prompt", "user_prompt", "instructions", "template", "system_message", "content"}
 _PERMISSION_KEYS = {"permissions", "allowed_actions", "scopes", "grants", "access"}

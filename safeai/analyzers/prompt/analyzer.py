@@ -9,7 +9,6 @@ Scans Python source for:
 
 import re
 
-
 UNTRUSTED = re.compile(r"(user_input|request|input|response)")
 INTERP = re.compile(r"f\"|\.format\(")
 

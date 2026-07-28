@@ -5,7 +5,7 @@ Includes executive summary, trust score breakdown, capability matrix,
 governance summary, and a detailed findings table.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from html import escape
 
 
@@ -46,7 +46,7 @@ def write_html(report, path):
     components = report.get("components", [])
     diagnostics = report.get("diagnostics", [])
     capability_diff = report.get("capability_diff", {})
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    now = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     capability_rows = []
     for cap in report.get("normalized_capabilities", []):

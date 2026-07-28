@@ -10,26 +10,25 @@ Operates in two passes:
 
 import re
 
-
 CAP_PATTERNS = {
-    "shell": re.compile(r"subprocess|os\.system|popen", re.I),
-    "filesystem": re.compile(r"open\(|os\.remove|os\.write|pathlib", re.I),
-    "external_apis": re.compile(r"requests|httpx|urllib", re.I),
-    "databases": re.compile(r"sqlite3|psycopg2|mysql|postgres|sqlalchemy", re.I),
-    "code_exec": re.compile(r"exec\(|eval\(", re.I),
-    "docker": re.compile(r"import docker|from docker|DockerClient|docker\.run|containers\.run", re.I),
-    "kubernetes": re.compile(r"import kubernetes|from kubernetes|kubectl|kube_config|KubeConfig|k8s", re.I),
-    "redis": re.compile(r"import redis|from redis|Redis\(|redis\.StrictRedis|redis\.Redis", re.I),
-    "s3": re.compile(r"import boto3|from boto3|boto3\.client.*s3|boto3\.resource.*s3|S3Client|s3\.put|s3\.get", re.I),
-    "slack": re.compile(r"import slack|from slack|SlackClient|slack_sdk|slack\.WebClient|slack\.SocketModeClient", re.I),
-    "jira": re.compile(r"import jira|from jira|JIRA\(|jira\.Client|jira\.JIRA", re.I),
-    "browser": re.compile(r"import playwright|from playwright|Playwright|selenium|webdriver|puppeteer|from browser_use", re.I),
-    "gcp": re.compile(r"import google\.cloud|from google\.cloud|google\.cloud\.\w+|GCP|gcsfs|BigQuery", re.I),
+    "shell": re.compile(r"subprocess|os\.system|popen", re.IGNORECASE),
+    "filesystem": re.compile(r"open\(|os\.remove|os\.write|pathlib", re.IGNORECASE),
+    "external_apis": re.compile(r"requests|httpx|urllib", re.IGNORECASE),
+    "databases": re.compile(r"sqlite3|psycopg2|mysql|postgres|sqlalchemy", re.IGNORECASE),
+    "code_exec": re.compile(r"exec\(|eval\(", re.IGNORECASE),
+    "docker": re.compile(r"import docker|from docker|DockerClient|docker\.run|containers\.run", re.IGNORECASE),
+    "kubernetes": re.compile(r"import kubernetes|from kubernetes|kubectl|kube_config|KubeConfig|k8s", re.IGNORECASE),
+    "redis": re.compile(r"import redis|from redis|Redis\(|redis\.StrictRedis|redis\.Redis", re.IGNORECASE),
+    "s3": re.compile(r"import boto3|from boto3|boto3\.client.*s3|boto3\.resource.*s3|S3Client|s3\.put|s3\.get", re.IGNORECASE),
+    "slack": re.compile(r"import slack|from slack|SlackClient|slack_sdk|slack\.WebClient|slack\.SocketModeClient", re.IGNORECASE),
+    "jira": re.compile(r"import jira|from jira|JIRA\(|jira\.Client|jira\.JIRA", re.IGNORECASE),
+    "browser": re.compile(r"import playwright|from playwright|Playwright|selenium|webdriver|puppeteer|from browser_use", re.IGNORECASE),
+    "gcp": re.compile(r"import google\.cloud|from google\.cloud|google\.cloud\.\w+|GCP|gcsfs|BigQuery", re.IGNORECASE),
 }
 
 # Higher-risk variants detected in addition to the base capability patterns.
-SUBPROCESS_SHELL_RE = re.compile(r"subprocess[\s\S]{0,200}?shell\s*=\s*True", re.I)
-FILE_WRITE_RE = re.compile(r"\bopen\([^)]*[\"'](?:w|a|x)[bt+]?[\"']", re.I)
+SUBPROCESS_SHELL_RE = re.compile(r"subprocess[\s\S]{0,200}?shell\s*=\s*True", re.IGNORECASE)
+FILE_WRITE_RE = re.compile(r"\bopen\([^)]*[\"'](?:w|a|x)[bt+]?[\"']", re.IGNORECASE)
 
 RULE_BY_CAP = {
     "shell": "CAP_shell",
@@ -135,7 +134,7 @@ class CapabilityAnalyzer:
                 entry["confidence"] = max(entry["confidence"], float(cap.get("confidence", 0.7)))
                 entry["risk_weight"] = max(entry["risk_weight"], float(cap.get("risk_weight", 1.0)))
 
-        for _, entry in arbitration.items():
+        for entry in arbitration.values():
             path = entry["path"]
             cap_name = entry["cap_name"]
             cap_category = entry["cap_category"]

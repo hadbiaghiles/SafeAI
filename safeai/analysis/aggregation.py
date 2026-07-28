@@ -140,7 +140,7 @@ def aggregate_parser_models(per_file_results):
             "file": path,
             "frameworks": frameworks,
             "framework_confidence": framework_confidences,
-            "discovery_methods": sorted(list(methods)),
+            "discovery_methods": sorted(methods),
             "artifacts": merged_artifacts,
             "relationships": artifacts["relationships"],
             "capabilities": aggregate_capabilities(artifacts["capabilities"]),

@@ -17,7 +17,10 @@ import re
 import yaml
 
 from safeai.analysis.capabilities import make_capability
-from safeai.analyzers.mcp.compatibility import normalize_mcp_data, resolve_mcp_schema_version
+from safeai.analyzers.mcp.compatibility import (
+    normalize_mcp_data,
+    resolve_mcp_schema_version,
+)
 from safeai.analyzers.mcp.validators import validate_mcp_schema
 
 
@@ -94,12 +97,10 @@ class MCPAnalyzer:
         if "mcp" in low:
             return True
         if isinstance(data, dict):
-            keys = {str(k).lower() for k in data.keys()}
+            keys = {str(k).lower() for k in data}
             if "mcp" in keys or ("servers" in keys and "tools" in keys):
                 return True
-        if path.lower().endswith(("mcp.json", "mcp.yaml", "mcp.yml")):
-            return True
-        return False
+        return bool(path.lower().endswith(("mcp.json", "mcp.yaml", "mcp.yml")))
 
     def _find_capabilities(self, text, framework="mcp"):
         low = text.lower()
@@ -122,7 +123,7 @@ class MCPAnalyzer:
         for path, content in file_cache.items():
             data = self._parse_config(path, content)
             if not self._looks_like_mcp(path, content, data):
-                if path.endswith(".py") and re.search(r"\bmcp\b", content, flags=re.I):
+                if path.endswith(".py") and re.search(r"\bmcp\b", content, flags=re.IGNORECASE):
                     findings.append(_base_finding(
                         "MCP_PY_REFERENCE",
                         "low",
@@ -241,7 +242,7 @@ class MCPAnalyzer:
                     ))
 
                 endpoint_text = " ".join(str(e) for e in asset["endpoints"])
-                if endpoint_text and re.search(r"http://|0\.0\.0\.0|\*", endpoint_text, flags=re.I):
+                if endpoint_text and re.search(r"http://|0\.0\.0\.0|\*", endpoint_text, flags=re.IGNORECASE):
                     findings.append(_base_finding(
                         "MCP_ENDPOINT_EXPOSURE",
                         "high",
@@ -259,7 +260,7 @@ class MCPAnalyzer:
                     ))
 
                 serialized = json.dumps(mcp_data, default=str)
-                if re.search(r"api[_-]?key\s*[:=]\s*['\"][^'\"]+['\"]|token\s*[:=]\s*['\"][^'\"]+['\"]", serialized, flags=re.I):
+                if re.search(r"api[_-]?key\s*[:=]\s*['\"][^'\"]+['\"]|token\s*[:=]\s*['\"][^'\"]+['\"]", serialized, flags=re.IGNORECASE):
                     findings.append(_base_finding(
                         "MCP_HARDCODED_SECRET",
                         "critical",
@@ -277,7 +278,7 @@ class MCPAnalyzer:
                     ))
 
                 tool_text = " ".join(str(t) for t in asset["tools"])
-                if re.search(r"exec|shell|command|subprocess", tool_text, flags=re.I):
+                if re.search(r"exec|shell|command|subprocess", tool_text, flags=re.IGNORECASE):
                     findings.append(_base_finding(
                         "MCP_DANGEROUS_TOOL",
                         "high",
@@ -309,7 +310,7 @@ class MCPAnalyzer:
                     full_tool_text = f"{tool_name} {tool_desc} {tool_params}"
 
                     # Overly broad tool: wildcards or unrestricted patterns
-                    if re.search(r"\*|all|any|unrestricted|no.limit|bypass", tool_params, flags=re.I):
+                    if re.search(r"\*|all|any|unrestricted|no.limit|bypass", tool_params, flags=re.IGNORECASE):
                         findings.append(_base_finding(
                             "MCP_TOOL_OVERLY_BROAD",
                             "high",
@@ -329,7 +330,7 @@ class MCPAnalyzer:
                 # --- Per-resource sensitive data analysis ---
                 for resource in asset["resources"]:
                     resource_text = json.dumps(resource, default=str) if isinstance(resource, dict) else str(resource)
-                    if re.search(r"password|secret|credential|token|private|ssn|credit.card|api.key", resource_text, flags=re.I):
+                    if re.search(r"password|secret|credential|token|private|ssn|credit.card|api.key", resource_text, flags=re.IGNORECASE):
                         findings.append(_base_finding(
                             "MCP_RESOURCE_SENSITIVE",
                             "high",
@@ -353,7 +354,7 @@ class MCPAnalyzer:
                 transport_vals = [str(t).lower() for t in asset["transports"]]
                 has_https = any("https" in v for v in transport_vals)
                 has_insecure = any(
-                    re.match(r"http://|ws://|stdio|tcp://", v, flags=re.I)
+                    re.match(r"http://|ws://|stdio|tcp://", v, flags=re.IGNORECASE)
                     for v in transport_vals
                 )
                 if has_insecure or (transport_vals and not has_https):

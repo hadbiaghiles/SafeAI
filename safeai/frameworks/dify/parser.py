@@ -105,7 +105,7 @@ class DifyParser:
             caps.append(make_capability("databases", "Databases", "dify", "config DB reference", confidence=0.7, source="config"))
 
     def _parse_python(self, content, result, caps):
-        for m in re.finditer(r"DifyClient|dify_client", content, re.I):
+        for m in re.finditer(r"DifyClient|dify_client", content, re.IGNORECASE):
             result["detection_evidence"].append(f"Dify client: {m.group(0)}")
-        for m in re.finditer(r"model\s*=\s*['\"]([^'\"]+)['\"]", content, re.I):
+        for m in re.finditer(r"model\s*=\s*['\"]([^'\"]+)['\"]", content, re.IGNORECASE):
             result["models"].append(m.group(1))

@@ -7,8 +7,13 @@ skills, model references, and infers planner and model API capabilities.
 """
 
 import re
+
 from safeai.analysis.capabilities import dedupe_capabilities, make_capability
-from safeai.analysis.semantic import build_semantic_document, resolve_symbol, resolve_symbol_origin
+from safeai.analysis.semantic import (
+    build_semantic_document,
+    resolve_symbol,
+    resolve_symbol_origin,
+)
 from safeai.frameworks import register_parser
 
 
@@ -86,7 +91,7 @@ class SemanticKernelParser:
                 })
 
         if not skills:
-            skills = [{"name": s, "evidence": s} for s in re.findall(r"skill", content, flags=re.I)]
+            skills = [{"name": s, "evidence": s} for s in re.findall(r"skill", content, flags=re.IGNORECASE)]
 
         return {
             "framework": "semantic_kernel",

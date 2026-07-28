@@ -25,16 +25,16 @@ from safeai.analysis.semantic import _literal_value, _name_of, build_semantic_do
 # Detection patterns
 # ---------------------------------------------------------------------------
 
-_SKILL_FILE_RE = re.compile(r"\.skill\.(yaml|yml|json|py)$", re.I)
-_SKILL_CONTENT_RE = re.compile(r"skill_type|semantic_kernel.*skill|Skill\(", re.I)
+_SKILL_FILE_RE = re.compile(r"\.skill\.(yaml|yml|json|py)$", re.IGNORECASE)
+_SKILL_CONTENT_RE = re.compile(r"skill_type|semantic_kernel.*skill|Skill\(", re.IGNORECASE)
 
 _PROMPT_FILE_RE = re.compile(
-    r"\.prompt(\.|$)|\.prompt\.|^(system_)?prompt\.(md|txt)$", re.I
+    r"\.prompt(\.|$)|\.prompt\.|^(system_)?prompt\.(md|txt)$", re.IGNORECASE
 )
-_PROMPT_CONTENT_RE = re.compile(r"system_prompt|user_prompt|prompt_template|PromptTemplate|SystemMessage|HumanMessage", re.I)
+_PROMPT_CONTENT_RE = re.compile(r"system_prompt|user_prompt|prompt_template|PromptTemplate|SystemMessage|HumanMessage", re.IGNORECASE)
 
-_WORKFLOW_FILE_RE = re.compile(r"workflow\.(yaml|yml|json)|\.workflow\.(yaml|yml|json)", re.I)
-_WORKFLOW_CONTENT_RE = re.compile(r"steps|stages|pipeline|nodes|edges", re.I)
+_WORKFLOW_FILE_RE = re.compile(r"workflow\.(yaml|yml|json)|\.workflow\.(yaml|yml|json)", re.IGNORECASE)
+_WORKFLOW_CONTENT_RE = re.compile(r"steps|stages|pipeline|nodes|edges", re.IGNORECASE)
 
 _MODEL_CONFIG_KEYS = {"model", "model_name", "model_id", "temperature", "top_p", "top_k", "max_tokens", "safety_settings", "content_filter", "system_instruction"}
 _MODEL_NAME_RE = re.compile(
@@ -44,7 +44,7 @@ _MODEL_NAME_RE = re.compile(
     r"|Gemini|VertexAI|VertexChat"
     r"|OpenAI|Anthropic|Bedrock|AzureOpenAI|GoogleGenerativeAI"
     r"|TextGeneration|Completion|ChatCompletion",
-    re.I,
+    re.IGNORECASE,
 )
 
 # Python decorator names that mark tool definitions.
@@ -221,7 +221,7 @@ def _extract_model_configs(path, content):
         data = None
 
     if isinstance(data, dict):
-        model_keys = {k.lower() for k in data.keys()}
+        model_keys = {k.lower() for k in data}
         if _MODEL_CONFIG_KEYS & model_keys:
             comps.append({
                 "type": "model_config",

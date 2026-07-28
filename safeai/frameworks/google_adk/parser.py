@@ -25,7 +25,7 @@ class GoogleADKParser:
         for imported in list(doc.imports.values()) + list(doc.from_imports.values()):
             if "google" in imported and ("adk" in imported or "agent" in imported):
                 return True
-        return bool(re.search(r"from\s+google.*import.*Agent|import\s+google.*adk", content, re.I))
+        return bool(re.search(r"from\s+google.*import.*Agent|import\s+google.*adk", content, re.IGNORECASE))
 
     def parse(self, path, content, scan_ctx=None):
         module_name = ""

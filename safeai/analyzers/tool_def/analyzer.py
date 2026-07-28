@@ -12,10 +12,10 @@ import re
 
 from safeai.analysis.semantic import _name_of
 
-_SHELL_RE = re.compile(r"subprocess|os\.system|popen|os\.popen|shell\s*=\s*True", re.I)
-_EXEC_RE = re.compile(r"\bexec\(|\beval\(|os\.system", re.I)
-_WRITE_RE = re.compile(r"\bopen\([^)]*[\"'](?:w|a|x|r\+)[bt+]?[\"']", re.I)
-_DELETE_RE = re.compile(r"\bos\.(remove|unlink|rmdir|removedirs|rename|replace)\b", re.I)
+_SHELL_RE = re.compile(r"subprocess|os\.system|popen|os\.popen|shell\s*=\s*True", re.IGNORECASE)
+_EXEC_RE = re.compile(r"\bexec\(|\beval\(|os\.system", re.IGNORECASE)
+_WRITE_RE = re.compile(r"\bopen\([^)]*[\"'](?:w|a|x|r\+)[bt+]?[\"']", re.IGNORECASE)
+_DELETE_RE = re.compile(r"\bos\.(remove|unlink|rmdir|removedirs|rename|replace)\b", re.IGNORECASE)
 
 _DANGEROUS_PARAM_NAMES = {"cmd", "command", "shell", "script", "code", "expression", "eval", "exec", "query", "sql", "path", "filename", "file_path", "filepath", "url", "uri", "endpoint"}
 
@@ -172,7 +172,6 @@ class ToolDefAnalyzer:
             if deco_line <= len(lines):
                 deco_text = lines[deco_line - 1]
                 for kw in _PERMISSION_KEYWORDS:
-                    if kw in deco_text.lower():
-                        if "all" in deco_text.lower() or "*" in deco_text or "admin" in deco_text.lower():
-                            return f"decorator={deco_text.strip()}"
+                    if kw in deco_text.lower() and ("all" in deco_text.lower() or "*" in deco_text or "admin" in deco_text.lower()):
+                        return f"decorator={deco_text.strip()}"
         return None

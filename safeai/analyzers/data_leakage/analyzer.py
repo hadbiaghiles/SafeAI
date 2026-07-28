@@ -10,19 +10,18 @@ full secret values.
 
 import re
 
-
 PATTERNS = {
-    "API_KEY": re.compile(r"(api[_-]?key)\s*=\s*[\"']?[A-Za-z0-9_-]{16,}" , re.I),
-    "TOKEN": re.compile(r"(token)\s*=\s*[\"']?[A-Za-z0-9._-]{16,}", re.I),
-    "PASSWORD": re.compile(r"(password|passwd)\s*=\s*[\"']?.+", re.I),
-    "ENV_SECRET": re.compile(r"os\.environ\[.*\]", re.I),
+    "API_KEY": re.compile(r"(api[_-]?key)\s*=\s*[\"']?[A-Za-z0-9_-]{16,}" , re.IGNORECASE),
+    "TOKEN": re.compile(r"(token)\s*=\s*[\"']?[A-Za-z0-9._-]{16,}", re.IGNORECASE),
+    "PASSWORD": re.compile(r"(password|passwd)\s*=\s*[\"']?.+", re.IGNORECASE),
+    "ENV_SECRET": re.compile(r"os\.environ\[.*\]", re.IGNORECASE),
 }
 
 # Matches ``key = value`` style assignments for credential-like names so the
 # value portion can be masked in report evidence.
 _SECRET_VALUE_RE = re.compile(
     r"((?:api[_-]?key|token|password|passwd|secret)[\"']?\s*[:=]\s*[\"']?)([^\s\"',}]+)",
-    re.I,
+    re.IGNORECASE,
 )
 
 

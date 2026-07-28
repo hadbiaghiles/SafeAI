@@ -14,13 +14,13 @@ _UNTRUSTED_PLACEHOLDER_RE = re.compile(
     r"\{\{\s*(user_input|input|query|request|prompt|text|message|data|context)\s*\}\}"
     r"|\{\s*(user_input|input|query|request|prompt|text|message|data|context)\s*\}"
     r"|\$\{(user_input|input|query|request|prompt|text|message|data|context)\}",
-    re.I,
+    re.IGNORECASE,
 )
 
 _SYSTEM_PROMPT_EXPOSURE_RE = re.compile(
     r"system prompt|system message|reveal.*prompt|show.*prompt|print.*prompt|output.*prompt"
     r"|what.*your.*instructions|tell.*your.*instructions",
-    re.I,
+    re.IGNORECASE,
 )
 
 _ROLE_OVERRIDE_RE = re.compile(
@@ -30,7 +30,7 @@ _ROLE_OVERRIDE_RE = re.compile(
     r"|you\s+are\s+now\s+(a|an)\s+"
     r"|new\s+personality"
     r"|act\s+as\s+(if|though)\s+you\s+(are|were)",
-    re.I,
+    re.IGNORECASE,
 )
 
 _INJECTION_PRONE_RE = re.compile(
@@ -38,7 +38,7 @@ _INJECTION_PRONE_RE = re.compile(
     r"|\{[a-z_]+\}"          # Python .format()
     r"|\$\{[a-z_]+\}"        # Shell-style
     r"|%\([a-z_]+\)s",       # Old Python %
-    re.I,
+    re.IGNORECASE,
 )
 
 

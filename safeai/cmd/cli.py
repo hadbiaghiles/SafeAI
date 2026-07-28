@@ -9,6 +9,7 @@ import argparse
 import json
 import logging
 import sys
+
 from safeai.engine.scan import run_scan
 
 

@@ -1,4 +1,5 @@
 import json
+
 from safeai.report.sarif import write_sarif
 
 

@@ -6,6 +6,7 @@ workflow names from YAML structure and infers cloud service capability.
 """
 
 import yaml
+
 from safeai.analysis.capabilities import make_capability
 from safeai.frameworks import register_parser
 

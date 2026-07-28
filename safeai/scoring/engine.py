@@ -54,8 +54,8 @@ def score_report(findings, config_weights=None):
     if config_weights:
         weights.update(config_weights)
 
-    penalties = {k: 0.0 for k in weights.keys()}
-    breakdown = {k: [] for k in weights.keys()}
+    penalties = {k: 0.0 for k in weights}
+    breakdown = {k: [] for k in weights}
 
     for finding in findings:
         category = _normalize_category(finding.get("risk_category"))
@@ -73,10 +73,10 @@ def score_report(findings, config_weights=None):
 
     category_scores = {}
     for category, penalty in penalties.items():
-        score = 100 - int(round(penalty))
+        score = 100 - round(penalty)
         category_scores[category] = max(0, min(100, score))
 
-    overall = int(round(sum(category_scores.values()) / len(category_scores))) if category_scores else 100
+    overall = round(sum(category_scores.values()) / len(category_scores)) if category_scores else 100
 
     return {
         "categories": category_scores,

@@ -3,7 +3,10 @@ relativization, directory exclusions, and CLI exit codes."""
 
 import os
 
-from safeai.analyzers.data_leakage.analyzer import DataLeakageAnalyzer, mask_secret_evidence
+from safeai.analyzers.data_leakage.analyzer import (
+    DataLeakageAnalyzer,
+    mask_secret_evidence,
+)
 from safeai.cmd.cli import main
 from safeai.engine.scan import collect_files, run_scan
 

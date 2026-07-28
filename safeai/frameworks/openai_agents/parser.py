@@ -8,8 +8,13 @@ capabilities.
 """
 
 import re
+
 from safeai.analysis.capabilities import dedupe_capabilities, make_capability
-from safeai.analysis.semantic import build_semantic_document, resolve_symbol, resolve_symbol_origin
+from safeai.analysis.semantic import (
+    build_semantic_document,
+    resolve_symbol,
+    resolve_symbol_origin,
+)
 from safeai.frameworks import register_parser
 
 
@@ -25,14 +30,12 @@ class OpenAIAgentsParser:
         if scan_ctx:
             module_name = scan_ctx.get("module_by_file", {}).get(path, "")
             deps = scan_ctx.get("dependencies", set())
-        if "openai-agents" in deps or "openai" in deps:
-            if "Agent(" in content or "agents" in content.lower():
-                return True
+        if ("openai-agents" in deps or "openai" in deps) and ("Agent(" in content or "agents" in content.lower()):
+            return True
         doc = build_semantic_document(path, content, module_name=module_name)
         for imported in list(doc.imports.values()) + [v.rsplit(".", 1)[0] for v in doc.from_imports.values()]:
-            if imported.startswith("agents") or imported.startswith("openai"):
-                if "agent" in content.lower():
-                    return True
+            if imported.startswith(("agents", "openai")) and "agent" in content.lower():
+                return True
         low = content.lower()
         return "openai.agents" in low or "from agents import" in low or "import agents" in low
 

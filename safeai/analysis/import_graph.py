@@ -16,10 +16,8 @@ def module_name_from_path(root, path):
     """
     rel = os.path.relpath(path, root)
     rel = rel.replace("\\", "/")
-    if rel.endswith(".py"):
-        rel = rel[:-3]
-    if rel.endswith("/__init__"):
-        rel = rel[: -len("/__init__")]
+    rel = rel.removesuffix(".py")
+    rel = rel.removesuffix("/__init__")
     return rel.replace("/", ".")
 
 

@@ -10,13 +10,13 @@ Examines workflow YAML/JSON templates for security risks:
 import json
 import re
 
-_APPROVAL_RE = re.compile(r"approv|gate|review|manual|human|sign[-_]?off|confirm", re.I)
+_APPROVAL_RE = re.compile(r"approv|gate|review|manual|human|sign[-_]?off|confirm", re.IGNORECASE)
 _INSECURE_DEFAULT_RE = re.compile(
     r"auto_approve|allow_all|skip_validation|no_auth|no_gate|bypass|disabled.*auth|skip.*check",
-    re.I,
+    re.IGNORECASE,
 )
-_DANGEROUS_CAPABILITY_RE = re.compile(r"shell|exec|command|subprocess|delete|write|admin|root|sudo", re.I)
-_VALIDATION_RE = re.compile(r"validat|check|verify|sanitiz|assert", re.I)
+_DANGEROUS_CAPABILITY_RE = re.compile(r"shell|exec|command|subprocess|delete|write|admin|root|sudo", re.IGNORECASE)
+_VALIDATION_RE = re.compile(r"validat|check|verify|sanitiz|assert", re.IGNORECASE)
 
 
 def _base_finding(rule_id, rule, message, path, line, evidence=None, reason=None, score_contribution=8):
@@ -126,7 +126,7 @@ class WorkflowAnalyzer:
             if isinstance(val, list):
                 return val
         # Check nested structure
-        for k, v in data.items():
+        for v in data.values():
             if isinstance(v, dict):
                 result = WorkflowAnalyzer._extract_steps(v)
                 if result:

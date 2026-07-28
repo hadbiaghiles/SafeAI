@@ -1,5 +1,9 @@
-from safeai.analysis.semantic import build_semantic_document, resolve_symbol, resolve_symbol_origin
 from safeai.analysis.import_graph import build_import_graph
+from safeai.analysis.semantic import (
+    build_semantic_document,
+    resolve_symbol,
+    resolve_symbol_origin,
+)
 
 
 def test_semantic_resolution_and_alias():

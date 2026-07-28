@@ -24,9 +24,7 @@ class ClaudeCodeParser:
             return True
         if ".claude/" in path.replace("\\", "/"):
             return True
-        if "claude-code" in content.lower() or "claude_code" in content.lower():
-            return True
-        return False
+        return bool("claude-code" in content.lower() or "claude_code" in content.lower())
 
     def parse(self, path, content, scan_ctx=None):
         result = {
@@ -62,19 +60,19 @@ class ClaudeCodeParser:
         # Tool references: @tool-name or tool: name
         for m in re.finditer(r"@([a-z][a-z0-9_-]+)", content):
             result["tools"].append(m.group(1))
-        for m in re.finditer(r"tool:\s*([a-z][a-z0-9_-]+)", content, re.I):
+        for m in re.finditer(r"tool:\s*([a-z][a-z0-9_-]+)", content, re.IGNORECASE):
             result["tools"].append(m.group(1))
 
         # Model references
-        for m in re.finditer(r"claude-(sonnet|opus|haiku)-[\d-]+", content, re.I):
+        for m in re.finditer(r"claude-(sonnet|opus|haiku)-[\d-]+", content, re.IGNORECASE):
             result["models"].append(m.group(0))
 
         # Agent/workflow references
-        for m in re.finditer(r"agent:\s*(.+)", content, re.I):
+        for m in re.finditer(r"agent:\s*(.+)", content, re.IGNORECASE):
             result["agents"].append(m.group(1).strip())
 
         # MCP references
-        if re.search(r"\bmcp\b", content, re.I):
+        if re.search(r"\bmcp\b", content, re.IGNORECASE):
             result["mcp_assets"].append({"type": "reference", "source": "claude.md"})
 
         # Capabilities
@@ -123,7 +121,7 @@ class ClaudeCodeParser:
                     result["tools"].extend(str(t) for t in tools)
 
     def _parse_python(self, content, result):
-        for m in re.finditer(r"claude-(sonnet|opus|haiku)-[\d-]+", content, re.I):
+        for m in re.finditer(r"claude-(sonnet|opus|haiku)-[\d-]+", content, re.IGNORECASE):
             result["models"].append(m.group(0))
-        if re.search(r"\bmcp\b", content, re.I):
+        if re.search(r"\bmcp\b", content, re.IGNORECASE):
             result["mcp_assets"].append({"type": "reference", "source": "python"})

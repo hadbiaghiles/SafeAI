@@ -6,6 +6,7 @@ the built-in severity and OWASP category.
 """
 
 import os
+
 import yaml
 
 
@@ -16,7 +17,7 @@ def load_rules(custom_dir=None):
         if not d:
             continue
         for f in os.listdir(d):
-            if f.endswith(".yml") or f.endswith(".yaml"):
+            if f.endswith((".yml", ".yaml")):
                 try:
                     with open(os.path.join(d, f), "r") as fh:
                         rules.extend(yaml.safe_load(fh) or [])

@@ -7,8 +7,13 @@ resolved call expressions.
 """
 
 import re
+
 from safeai.analysis.capabilities import dedupe_capabilities, make_capability
-from safeai.analysis.semantic import build_semantic_document, resolve_symbol, resolve_symbol_origin
+from safeai.analysis.semantic import (
+    build_semantic_document,
+    resolve_symbol,
+    resolve_symbol_origin,
+)
 from safeai.frameworks import register_parser
 
 
@@ -80,7 +85,7 @@ class CrewAIParser:
                     tools.append({"name": line.strip(), "evidence": line.strip()})
 
         if not prompts:
-            prompts = [{"name": p, "evidence": p} for p in re.findall(r"prompt\s*=\s*['\"].+['\"]", content, flags=re.I)]
+            prompts = [{"name": p, "evidence": p} for p in re.findall(r"prompt\s*=\s*['\"].+['\"]", content, flags=re.IGNORECASE)]
 
         for workflow in workflows:
             w_kwargs = workflow.get("kwargs", {})
