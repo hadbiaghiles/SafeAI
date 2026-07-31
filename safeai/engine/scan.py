@@ -31,7 +31,7 @@ from safeai.scoring.engine import score_report
 logger = logging.getLogger("safeai")
 
 # Directories that are never scanned (version control, dependency caches,
-# virtual environments, build outputs).
+# virtual environments, build outputs, SafeAI's own local state).
 EXCLUDED_DIRS = {
     ".git", ".hg", ".svn",
     "node_modules",
@@ -40,7 +40,12 @@ EXCLUDED_DIRS = {
     ".pytest_cache", ".mypy_cache", ".ruff_cache", ".tox",
     "dist", "build", ".eggs",
     ".idea", ".vscode",
+    ".safeai",
 }
+
+# SafeAI's own canonical artifacts are never re-scanned: scanning a
+# previously generated manifest would create a findings feedback loop.
+_EXCLUDED_FILES = {"safeai-manifest.json"}
 
 # Files larger than this are skipped to avoid excessive memory use.
 MAX_FILE_BYTES = 2 * 1024 * 1024
@@ -49,9 +54,30 @@ MAX_FILE_BYTES = 2 * 1024 * 1024
 def _is_scannable_file(filename):
     """Return whether a file is source, configuration, or AI instructions."""
     lower = filename.lower()
+    if lower in _EXCLUDED_FILES:
+        return False
     if lower.endswith((".py", ".json", ".yaml", ".yml", ".prompt")):
         return True
     return lower in {"claude.md", "prompt.md", "system_prompt.md"} or lower.endswith((".prompt.md", ".prompt.txt"))
+
+
+def _is_own_manifest(path):
+    """Return True when a JSON file is a SafeAI-generated artifact.
+
+    Scanning a previously generated manifest or JSON report would create
+    a findings feedback loop, so files declaring ``safeai.kya`` or
+    ``safeai.scan`` type markers are skipped regardless of filename.
+    """
+    if not path.lower().endswith(".json"):
+        return False
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as fh:
+            content = fh.read()
+    except OSError:
+        return False
+    return ('"manifest_type"' in content and '"safeai.kya"' in content) or (
+        '"report_type"' in content and '"safeai.scan"' in content
+    )
 
 
 def collect_files(root):
@@ -68,6 +94,8 @@ def collect_files(root):
                     logger.debug("Skipping oversized file: %s", full)
                     continue
             except OSError:
+                continue
+            if _is_own_manifest(full):
                 continue
             files.append(full)
     return files
@@ -292,6 +320,7 @@ def run_scan(directory, rules_dir=None, baseline_report=None):
     project_graph = build_project_graph(agent_models, mcp_assets=mcp_assets, components=components)
 
     report = {
+        "report_type": "safeai.scan",
         "findings": findings,
         "counts": counts,
         "files_scanned": len(files),

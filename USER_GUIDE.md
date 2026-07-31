@@ -12,8 +12,12 @@
 6. [Supported Project Types](#supported-project-types)
 7. [Understanding Results](#understanding-results)
 8. [Reports](#reports)
-9. [Troubleshooting](#troubleshooting)
-10. [FAQ](#faq)
+9. [KYA Registry](#kya-registry)
+10. [Baseline Workflow](#baseline-workflow)
+11. [Suppressions & Exceptions](#suppressions--exceptions)
+12. [Policy-as-Code](#policy-as-code)
+13. [Troubleshooting](#troubleshooting)
+14. [FAQ](#faq)
 
 ---
 
@@ -21,7 +25,7 @@
 
 ### System Requirements
 
-- Python 3.11 or 3.12
+- Python 3.11, 3.12, or 3.13
 - Operating system: Linux, macOS, Windows
 - No external service dependencies
 - No GPU required
@@ -53,8 +57,11 @@ Expected output:
 
 ```
 usage: safeai scan [-h] [--sarif SARIF] [--json JSON_PATH] [--html HTML_PATH]
-                   [--rules RULES] [--fail-on {critical,high,medium}]
-                   [--verbose]
+                   [--manifest MANIFEST_PATH] [--rules RULES]
+                   [--fail-on {critical,high,medium}] [--verbose]
+                   [--baseline BASELINE] [--fail-on-new]
+                   [--registry REGISTRY] [--no-registry] [--strict-registry]
+                   [--policy POLICY] [--suppressions SUPPRESSIONS]
                    directory
 ```
 
@@ -124,8 +131,11 @@ python -m safeai scan /path/to/project --sarif ""
 
 ```
 usage: safeai scan [-h] [--sarif SARIF] [--json JSON_PATH]
-                   [--html HTML_PATH] [--rules RULES]
-                   [--fail-on {critical,high,medium}] [--verbose]
+                   [--html HTML_PATH] [--manifest MANIFEST_PATH]
+                   [--rules RULES] [--fail-on {critical,high,medium}]
+                   [--verbose] [--baseline BASELINE] [--fail-on-new]
+                   [--registry REGISTRY] [--no-registry] [--strict-registry]
+                   [--policy POLICY] [--suppressions SUPPRESSIONS]
                    directory
 ```
 
@@ -135,9 +145,27 @@ usage: safeai scan [-h] [--sarif SARIF] [--json JSON_PATH]
 | `--sarif` | string | `report.sarif` | SARIF output file path |
 | `--json` | string | — | JSON output file path |
 | `--html` | string | — | HTML report output path |
+| `--manifest` | string | — | Canonical KYA manifest output path |
 | `--rules` | string | built-in | Path to custom rules directory |
 | `--fail-on` | choice | `critical` | Minimum severity for non-zero exit |
+| `--baseline` | string | — | Baseline manifest/report for status comparison |
+| `--fail-on-new` | flag | off | Fail only on new/regressed findings when baseline is supplied |
+| `--registry` | string | `.safeai/registry.db` | Override registry database path |
+| `--no-registry` | flag | off | Do not persist scan state to local registry |
+| `--strict-registry` | flag | off | Fail scan on registry persistence errors |
+| `--policy` | string | `.safeai/policy.yml` | Policy-as-code file path |
+| `--suppressions` | string | `.safeai/suppressions.yml` | Suppression file path |
 | `--verbose` | flag | off | Enable verbose scanner output |
+
+### `registry` — Query local KYA history
+
+```bash
+safeai registry list [--registry PATH] [--format table|json]
+safeai registry show <agent-id> [--scan <scan-id>] [--registry PATH] [--format table|json]
+safeai registry history <agent-id> [--registry PATH] [--format table|json]
+safeai registry diff <agent-id> --from previous --to latest [--registry PATH] [--format table|json]
+safeai registry export --format json --output <path> [--include-history] [--include-suppressed] [--registry PATH]
+```
 
 ---
 
@@ -196,7 +224,10 @@ Each finding contains:
 | `affected_capability` | Capability category affected |
 | `score_contribution` | Points contributed to overall risk score |
 | `remediation` | Recommended fix |
-| `confidence` | Detection confidence (0.0–1.0) |
+| `confidence` | Detection confidence (numeric, analyzer-level) |
+| `confidence_label` | Normalized confidence (`high`, `medium`, `low`) |
+| `fingerprint` / `finding_id` | Stable deterministic finding identity |
+| `status` | `new`, `existing`, `regressed`, `resolved`, `suppressed`, `unknown` |
 | `source` | Detection method (`ast`, `configuration`, `regex`, etc.) |
 | `resolved_definition` | Resolved symbol origin (if import graph resolved) |
 | `provenance_frameworks` | All frameworks that identified this finding |
@@ -283,6 +314,161 @@ Self-contained HTML report with:
 - Findings table with evidence and recommendations
 
 Responsive design, print-friendly.
+
+---
+
+## KYA Registry
+
+Every scan automatically creates or updates a **local, private "Know Your
+Agent" registry** at `.safeai/registry.db` (SQLite). It keeps historical
+scan-derived agent records and evidence — no server, account, network call,
+or source upload.
+
+> KYA records are **static analysis evidence** ("detected in
+> source/configuration"). They never represent deployed runtime state,
+> effective permissions, live identities, or runtime behavior.
+
+### Registry lifecycle
+
+- **First scan**: creates `.safeai/registry.db`, prints a one-line
+  initialization message and a `.gitignore` hint (SafeAI never edits your
+  `.gitignore` for you).
+- **Subsequent scans**: append a new snapshot; prior history is never
+  overwritten.
+- **CI**: when the `CI` environment variable is set, persistence is
+  auto-disabled. Use `--registry PATH` to opt in, or `--no-registry` for
+  ephemeral scans.
+- **Failure tolerance**: a scan still succeeds and produces reports if
+  persistence fails (a warning is printed). `--strict-registry` turns the
+  failure into exit code 2.
+
+```bash
+safeai scan .                                # default: persist to .safeai/registry.db
+safeai scan . --no-registry                  # ephemeral
+safeai scan . --registry /secure/shared/safeai/registry.db
+```
+
+### Registry commands
+
+```bash
+safeai registry list [--format table|json]
+safeai registry show <agent-id> [--scan <scan-id>] [--format table|json]
+safeai registry history <agent-id> [--format json]
+safeai registry diff <agent-id> --from previous --to latest [--format table|json]
+safeai registry export --format json --output inventory.json \
+    [--include-history] [--include-suppressed]
+```
+
+- All commands accept `--registry PATH`; without it, `.safeai/registry.db`
+  under the current directory is used.
+- `diff` exit codes: `0` no risk-relevant change, `1` changes exist,
+  `2` usage/registry error.
+
+### Project identity
+
+Resolved in priority order: (1) `project_id` in `.safeai/config.yml`,
+(2) a fingerprint of the normalized Git remote plus repo root, (3) a
+persisted local UUID in `.safeai/config.yml`. Raw remote URLs are never
+stored or exported.
+
+See [REGISTRY.md](REGISTRY.md) for schema, stored/not-stored data, and
+backup guidance.
+
+---
+
+## Baseline Workflow
+
+Baselines let CI emphasize **new or regressed** issues instead of failing on
+all historical findings.
+
+```bash
+# 1. Establish a baseline (usually on the main branch)
+safeai scan . --manifest safeai-manifest.json --no-registry
+
+# 2. Compare a PR scan against it
+safeai scan . --baseline safeai-manifest.json --fail-on-new
+```
+
+Terminal output shows counters: new / existing / resolved findings and new
+high+critical findings. Findings keep their `status` in JSON, HTML, SARIF,
+manifest, and registry history.
+
+- `--fail-on-new` requires `--baseline`. The failing set is restricted to
+  findings classified `new` or `regressed` at or above `--fail-on` severity.
+- Without `--fail-on-new`, `--fail-on` semantics are unchanged (any active
+  finding at/above threshold fails).
+- Baselines accept the canonical manifest or a legacy SafeAI JSON report.
+- Regressed classification (previously resolved, now reintroduced) uses
+  registry history when available.
+
+Do not commit baseline files blindly: review them like lockfiles.
+
+---
+
+## Suppressions & Exceptions
+
+Suppressions record **technical false positives or accepted local
+exceptions** in `.safeai/suppressions.yml`. They are auditable and never
+silent: suppressed findings stay visible everywhere with status
+`suppressed` but are excluded from gating.
+
+```yaml
+version: "1"
+suppressions:
+  - fingerprint: "022ea2ed..."     # or rule_id: CAP_shell
+    reason: "Shell is gated by manual approval in this internal tool."
+    owner: "security-team"          # required
+    created: "2026-07-31"           # required (YYYY-MM-DD)
+    expires: "2026-12-31"           # optional
+    path: "src/**"                  # optional glob scope
+```
+
+- `reason`, `owner`, and `created` are **required** — invalid files are
+  rejected, never silently ignored.
+- Expired suppressions stop applying and are reported as warnings.
+- Distinguish from a **policy exception**: an authorised risk acceptance
+  for a defined period belongs in `.safeai/policy.yml` as an `allow`
+  policy with a reason.
+
+---
+
+## Policy-as-Code
+
+`.safeai/policy.yml` maps static evidence to actions. Deliberately minimal —
+not OPA/Rego. Actions by precedence: `allow < warn < require_review < deny`.
+
+```yaml
+version: "1"
+default_action: warn
+policies:
+  - id: deny-shell-with-untrusted-input
+    when:
+      capabilities_all: [shell]
+      finding_ids: [PROMPT_INJECTION]
+    action: deny
+    message: "Untrusted input reaches an agent with shell capability."
+  - id: review-remote-mcp-without-auth-evidence
+    when:
+      mcp:
+        remote: true
+        authentication_evidence: absent
+    action: require_review
+  - id: permit-dev-example
+    when:
+      path_glob: "examples/**"
+    action: allow
+    reason: "Intentionally vulnerable fixture."
+```
+
+Selectors: `finding_ids`/`rule_ids`, `severity`, `min_severity`,
+`capabilities_all`/`capabilities_any`, `frameworks`, `agent`, `path_glob`,
+and `mcp` posture (`remote`, `authentication_evidence: present|absent`).
+
+- Evaluation is deterministic (file order; highest-precedence action wins).
+- The outcome appears in terminal output, the manifest
+  (`summary.policy_decision`), HTML, and JSON, with per-policy match reasons.
+- `deny` fails the scan (exit 1) regardless of `--fail-on`.
+- A `pass`/`allow` outcome is **not** a safety or compliance claim.
 
 ---
 

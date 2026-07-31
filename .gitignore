@@ -25,6 +25,12 @@ docs-phase1/
 safeai_reports/
 sample-agents/
 report.sarif
+safeai-manifest.json
+
+# KYA local registry (private, machine-local state)
+.safeai/registry.db
+.safeai/registry.db-wal
+.safeai/registry.db-shm
 
 # Environment
 .env

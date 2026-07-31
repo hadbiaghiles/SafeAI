@@ -11,33 +11,53 @@ import json
 
 
 def write_sarif(report, path):
+    findings = report["findings"]
+
+    # Stable rule metadata with remediation help text where available.
+    rules_meta = {}
+    for finding in findings:
+        rule_id = finding.get("rule_id")
+        if rule_id and rule_id not in rules_meta:
+            entry = {"id": rule_id}
+            if finding.get("remediation"):
+                entry["help"] = {"text": finding["remediation"]}
+            if finding.get("message"):
+                entry["shortDescription"] = {"text": str(finding["message"]).split("\n")[0][:160]}
+            rules_meta[rule_id] = entry
+
+    results = []
+    for f in findings:
+        result = {
+            "ruleId": f["rule_id"],
+            "message": {"text": f["message"]},
+            "locations": [
+                {
+                    "physicalLocation": {
+                        "artifactLocation": {"uri": f["file"]},
+                        "region": {"startLine": f["line"]},
+                    }
+                }
+            ],
+            "properties": {"owasp_llm": f.get("owasp_llm")},
+        }
+        if f.get("fingerprint"):
+            result["partialFingerprints"] = {"safeaiFindingFingerprint": f["fingerprint"]}
+        if f.get("status"):
+            result.setdefault("properties", {})["status"] = f["status"]
+        results.append(result)
+
     sarif = {
         "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0.json",
         "version": "2.1.0",
         "runs": [
             {
-                "tool": {"driver": {"name": "safeai"}},
-                "results": [
-                    {
-                        "ruleId": f["rule_id"],
-                        "message": {"text": f["message"]},
-                        "locations": [
-                            {
-                                "physicalLocation": {
-                                    "artifactLocation": {"uri": f["file"]},
-                                    "region": {"startLine": f["line"]},
-                                }
-                            }
-                        ],
-                        "properties": {"owasp_llm": f.get("owasp_llm")},
-                    }
-                    for f in report["findings"]
-                ],
+                "tool": {"driver": {"name": "safeai", "rules": list(rules_meta.values())}},
+                "results": results,
             }
         ],
     }
 
-    for result, finding in zip(sarif["runs"][0]["results"], report["findings"]):
+    for result, finding in zip(sarif["runs"][0]["results"], findings):
         props = result.setdefault("properties", {})
         for key in [
             "risk_category",
@@ -45,6 +65,7 @@ def write_sarif(report, path):
             "affected_capability",
             "score_contribution",
             "confidence",
+            "confidence_label",
             "resolved_definition",
             "schema_version",
             "validation_rule",

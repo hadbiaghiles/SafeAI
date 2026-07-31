@@ -1,5 +1,59 @@
 # SafeAI — Release Notes
 
+## v1.3.0-beta (2026-07-31)
+
+Release 1.3 introduces **KYA (Know Your Agent)** baseline and local registry
+capabilities while preserving SafeAI's offline-first static-analysis model.
+
+### Major Additions
+
+- **Canonical manifest**: `safeai-manifest.json` (`schema_version: "1.0"`,
+  `manifest_type: "safeai.kya"`) as the portable contract.
+- **Deterministic finding identity**: stable `finding_id`/`fingerprint`
+  generation, confidence labels (`high|medium|low`), provenance, and
+  remediation normalization.
+- **Baseline diffing**: `--baseline` and `--fail-on-new` for PR-focused
+  gating (new/regressed findings only).
+- **Suppressions**: `.safeai/suppressions.yml` with required reason/owner/
+  created date, optional expiry and path scope.
+- **Policy-as-code**: `.safeai/policy.yml` with actions `allow`, `warn`,
+  `require_review`, `deny` and deterministic evaluation.
+- **Local SQLite registry**: `.safeai/registry.db` with append-only scan
+  history and agent snapshots.
+- **Registry CLI**:
+  - `safeai registry list`
+  - `safeai registry show <agent-id>`
+  - `safeai registry history <agent-id>`
+  - `safeai registry diff <agent-id> --from previous --to latest`
+  - `safeai registry export --format json --output <path>`
+
+### New Scan Flags
+
+- `--manifest`
+- `--baseline`
+- `--fail-on-new`
+- `--registry`
+- `--no-registry`
+- `--strict-registry`
+- `--policy`
+- `--suppressions`
+
+### Behavior and Compatibility Notes
+
+- Existing `--fail-on` behavior is preserved unless `--fail-on-new` is
+  explicitly used.
+- Registry persistence is local-only and enabled by default for interactive
+  scans; it is auto-disabled when `CI` is detected unless `--registry` is
+  explicitly provided.
+- Report schema changes are additive.
+
+### Verification Snapshot
+
+- Full test suite passing (141 tests)
+- Lint checks passing (`ruff check safeai/ tests/`)
+- End-to-end CLI flows validated for scan, manifest, baseline, suppressions,
+  policy, registry, and export.
+
 ## v1.1.0-beta (2026-07-24)
 
 Phase 1.5 AI Component Security and stabilization release for SafeAI, the Static AI Capability & Risk Analyzer. This release remains entirely offline and static: SafeAI does not execute agents, invoke tools, call LLMs, or contact reputation services.

@@ -34,9 +34,21 @@ Report Generation (Terminal / JSON / SARIF / HTML)
 ```
 safeai/
 ├── cmd/                    # CLI entry point
-│   └── cli.py
+│   ├── cli.py             # scan + registry command groups
+│   └── registry_cli.py    # registry command handlers
 ├── engine/                 # Scanner orchestration
 │   └── scan.py
+├── kya/                   # Know Your Agent (Release 1.3)
+│   ├── util.py            # hashing, timestamps, secret redaction
+│   ├── identity.py        # project/agent ID derivation
+│   ├── fingerprints.py    # deterministic finding fingerprints
+│   ├── enrich.py          # finding normalization, agent records
+│   ├── manifest.py        # canonical safeai-manifest.json (schema v1.0)
+│   ├── baseline.py        # baseline comparison (new/existing/resolved)
+│   ├── suppressions.py    # .safeai/suppressions.yml workflow
+│   ├── policy.py          # .safeai/policy.yml evaluator
+│   ├── registry.py        # SQLite registry (schema, migrations, queries)
+│   └── exporter.py        # registry inventory export
 ├── analysis/              # Core analysis primitives
 │   ├── semantic.py        # AST document, symbol resolution
 │   ├── import_graph.py    # Project-wide import tracking
@@ -86,6 +98,29 @@ Entry point for the `safeai` command. Parses CLI arguments and invokes `run_scan
 - Uses Python `argparse` (no external CLI framework)
 - Single subcommand (`scan`) with optional output flags
 - Exit code 0/1 based on `--fail-on` threshold
+
+### 1b. KYA Pipeline (`kya/`)
+
+Release 1.3 adds a post-scan pipeline that runs after `run_scan()` in the
+CLI (the engine itself is untouched):
+
+```
+run_scan() → normalize_findings() → suppressions → baseline compare
+          → policy evaluate → build_agent_records() → build_manifest()
+          → registry persist → report writers
+```
+
+Key properties:
+
+- **Manifest-first** — `safeai-manifest.json` is the public contract; the
+  SQLite registry is an implementation detail.
+- **Deterministic identities** — project/agent/finding IDs derive from
+  content (never timestamps or randomness; scan IDs are the only per-run
+  UUIDs).
+- **Append-only registry** — every scan inserts a new snapshot; history is
+  never overwritten. Schema is versioned via `schema_migrations`.
+- **Redaction at the boundary** — evidence is secret-masked before it
+  reaches the manifest, registry, SARIF, or exports.
 
 ### 2. Scanner Engine (`engine/scan.py`)
 

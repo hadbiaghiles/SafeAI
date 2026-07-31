@@ -24,13 +24,22 @@ This document describes the planned roadmap across five phases. Phases are not s
 | **Autonomy** | Loop detection, unbounded execution | ✅ |
 | **MCP** | Schema validation (v1.0/v1.1), auth gaps, exposed endpoints, tool misuse, sensitive resources, insecure transports | ✅ |
 
-**Outputs implemented:** JSON, HTML, SARIF 2.1.0, capability graph (project_graph), trust score, capability diff (`--baseline`)
+**Outputs implemented:** JSON, HTML, SARIF 2.1.0, capability graph (project_graph), trust score, capability diff (`--baseline`), canonical manifest (`safeai-manifest.json`)
+
+**Release 1.3 delivered (KYA baseline + local registry):**
+
+- Canonical KYA manifest (`schema_version: 1.0`)
+- Stable finding IDs/fingerprints and status lifecycle (`new`, `existing`, `regressed`, `resolved`, `suppressed`)
+- Baseline-driven PR gating (`--fail-on-new`)
+- Local suppression workflow (`.safeai/suppressions.yml`)
+- Minimal policy-as-code (`.safeai/policy.yml`)
+- Local SQLite KYA registry and CLI (`registry list/show/history/diff/export`)
 
 **Still planned in Phase 1:**
 
 - **Governance signals** — timeout, retry policy, approval workflow, audit logging, rate limiting detection
 - **Heuristic data flows** — deeper untrusted input propagation into prompts
-- **PR capability escalation diff** — automatically compare a PR branch's capabilities against the base branch, flagging newly introduced shell, network, filesystem, or write access. Building on the existing `--baseline` diff.
+- **PR capability escalation diff refinement** — improve branch/base automation and deeper authority/context deltas on top of existing baseline support.
 - **Governed finding suppressions** — every suppression carries rule_id, file, location, reason, owner, and expiry. CI fails when code moves or waiver expires. Stale-detection for forgotten suppressions.
 - **Better terminal output** — structured, readable scan summary with severity grouping, improved layout, and clearer signal-to-noise ratio
 - **Trust score improvements** — weighted scoring giving higher impact to critical and high-severity findings

@@ -26,8 +26,60 @@ def print_summary(report):
         print("Capability diff:", f"+{diff['added']} / -{diff['removed']} / ~{diff['changed']}")
     if report.get("trust_score"):
         print("Overall AI Risk Score:", report["trust_score"].get("overall_ai_risk_score"))
+
+    # --- KYA (Know Your Agent) summary ---
+    kya_agents = report.get("kya_agents")
+    if kya_agents is not None:
+        print("Agents/workflows detected:", len(kya_agents))
+    registry = report.get("registry")
+    if registry:
+        state = registry.get("state", "skipped")
+        path = registry.get("path")
+        stats = registry.get("stats") or {}
+        line = f"Registry: {state}"
+        if path:
+            line += f" ({path})"
+        print(line)
+        if stats:
+            print(
+                "Registry delta:",
+                f"+{stats.get('new_agents', 0)} new agents,",
+                f"{stats.get('updated_agents', 0)} updated,",
+                f"+{stats.get('new_findings', 0)} new findings,",
+                f"{stats.get('regressed_findings', 0)} regressed",
+            )
+        elif registry.get("reason"):
+            print("Registry note:", registry["reason"])
+
+    baseline = report.get("baseline")
+    if baseline:
+        print(
+            "Baseline:",
+            f"{baseline['new']} new /",
+            f"{baseline['existing']} existing /",
+            f"{baseline['resolved']} resolved /",
+            f"{baseline['new_high_critical']} new high+critical",
+        )
+
+    policy = report.get("policy_decision")
+    if policy:
+        print("Policy outcome:", policy.get("outcome"))
+        for reason in (policy.get("reasons") or [])[:5]:
+            print(f"  - {reason}")
+
+    suppressions = report.get("suppressions")
+    if suppressions and suppressions.get("suppressed"):
+        print("Suppressed findings:", suppressions["suppressed"], "(visible in reports, excluded from gating)")
+
     for k, v in report["counts"].items():
         print(f"{k}: {v}")
     print("Findings:")
     for f in report["findings"]:
-        print(f"[{f['severity']}] {f['file']}:{f['line']} - {f['message']}")
+        status = f.get("status")
+        tag = f" [{status}]" if status and status != "new" else ""
+        print(f"[{f['severity']}] {f['file']}:{f['line']} - {f['message']}{tag}")
+
+    if kya_agents is not None or registry:
+        print()
+        print("Note: SafeAI results are static analysis evidence and do not verify")
+        print("deployed runtime permissions, identities, or behavior.")

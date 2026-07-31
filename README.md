@@ -155,11 +155,46 @@ SafeAI fingerprints capabilities at the framework object level and via fallback 
 
 ---
 
+## Know Your Agent (KYA) — Local Registry
+
+Every scan automatically builds a **private, local "Know Your Agent" registry**
+of scan-derived agent records — no server, no account, no network call, no
+source upload.
+
+```bash
+safeai scan .                              # scan + create/update .safeai/registry.db
+safeai scan . --manifest safeai-manifest.json   # also write the canonical KYA manifest
+safeai registry list                       # known agents/workflows
+safeai registry show <agent-id>            # latest KYA record
+safeai registry history <agent-id>         # all scans for an agent
+safeai registry diff <agent-id> --from previous --to latest
+safeai registry export --format json --output inventory.json
+```
+
+What you get on the first run:
+
+- A static scan ran successfully.
+- A local SQLite registry was initialized at `.safeai/registry.db`.
+- One or more KYA agent records were created with stable identities.
+- Findings carry confidence, provenance, remediation, and stable fingerprints.
+- No source code or secrets are uploaded or stored in output artifacts.
+
+**KYA records static evidence, not runtime truth.** It answers "what does the
+source/configuration say this agent can do?" — never "what is this agent doing
+in production?" See [REGISTRY.md](REGISTRY.md), [KYA_MANIFEST.md](KYA_MANIFEST.md),
+and [LIMITATIONS.md](LIMITATIONS.md).
+
+CI note: registry persistence is auto-disabled when the `CI` env var is set.
+Use `--registry "$RUNNER_TEMP/registry.db"` to persist in CI, or `--no-registry`
+for ephemeral scans.
+
+---
+
 ## Installation
 
 ### Requirements
 
-- Python 3.11 or 3.12
+- Python 3.11, 3.12, or 3.13
 - PyYAML (for YAML configuration parsing)
 
 ### Install from source
@@ -184,6 +219,10 @@ pip install -e ".[dev]"
 python -m safeai scan <directory> [options]
 ```
 
+```bash
+python -m safeai registry <subcommand> [options]
+```
+
 ### Options
 
 | Option | Default | Description |
@@ -192,6 +231,14 @@ python -m safeai scan <directory> [options]
 | `--sarif` | `report.sarif` | SARIF output path (empty string to skip) |
 | `--json` | — | JSON output path |
 | `--html` | — | HTML report output path |
+| `--manifest` | — | Canonical KYA manifest output path (`safeai-manifest.json`) |
+| `--baseline` | — | Prior manifest/report for new/existing comparison |
+| `--fail-on-new` | off | With `--baseline`: fail only on new/regressed findings |
+| `--policy` | `.safeai/policy.yml` | Policy-as-code YAML file |
+| `--suppressions` | `.safeai/suppressions.yml` | Suppressions YAML file |
+| `--registry` | `.safeai/registry.db` | Registry database path |
+| `--no-registry` | off | Skip registry persistence |
+| `--strict-registry` | off | Fail the scan if registry persistence fails |
 | `--rules` | built-in | Custom rules directory |
 | `--fail-on` | `critical` | Exit code threshold: `critical`, `high`, `medium` |
 | `--verbose` | — | Enable verbose output |
@@ -200,8 +247,29 @@ python -m safeai scan <directory> [options]
 
 | Code | Condition |
 |------|-----------|
-| 0 | No findings at or above threshold |
-| 1 | Finding at or above threshold detected |
+| 0 | No findings at or above threshold; policy outcome not `deny` |
+| 1 | Finding at or above threshold, or policy outcome `deny` |
+| 2 | Operational error (e.g. `--strict-registry` persistence failure) |
+
+Suppressed findings never trigger exit code 1. With `--fail-on-new`, only
+findings classified `new` or `regressed` against the baseline are gated.
+
+### Common 1.3 Workflows
+
+```bash
+# canonical manifest + baseline seed
+python -m safeai scan . --manifest safeai-manifest.json
+
+# CI/PR scan: fail only for new or regressed findings
+python -m safeai scan . --baseline safeai-manifest.json --fail-on-new --fail-on high
+
+# inspect local KYA registry
+python -m safeai registry list
+python -m safeai registry show <agent-id>
+python -m safeai registry history <agent-id>
+python -m safeai registry diff <agent-id> --from previous --to latest
+python -m safeai registry export --format json --output safeai-kya-inventory.json
+```
 
 ---
 
@@ -259,7 +327,11 @@ jobs:
           pip install -e .
       - name: Run scan
         run: |
-          python -m safeai scan . --sarif results.sarif --html report.html
+          python -m safeai scan . \
+            --sarif results.sarif \
+            --html report.html \
+            --manifest safeai-manifest.json \
+            --no-registry
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
@@ -273,7 +345,7 @@ safeai-scan:
   image: python:3.12
   script:
     - pip install -e .
-    - safeai scan . --sarif results.sarif --html report.html
+    - python -m safeai scan . --sarif results.sarif --html report.html --no-registry
   artifacts:
     paths:
       - results.sarif
@@ -289,7 +361,7 @@ safeai-scan:
     script: |
       import subprocess
       subprocess.run(["pip", "install", "-e", "."])
-      subprocess.run(["safeai", "scan", ".", "--sarif", "$(Build.ArtifactStagingDirectory)/results.sarif"])
+      subprocess.run(["python", "-m", "safeai", "scan", ".", "--sarif", "$(Build.ArtifactStagingDirectory)/results.sarif", "--no-registry"])
 ```
 
 ### SARIF Integration
@@ -300,14 +372,12 @@ SafeAI outputs SARIF 2.1.0 format, compatible with GitHub Advanced Security, Azu
 
 ## Roadmap
 
-See [ROADMAP.md](./ROADMAP.md) for the detailed roadmap covering all 5 phases:
+See [ROADMAP.md](./ROADMAP.md) for the detailed roadmap.
 
-- **Phase 1** — Static AI Risk Scanner (OSS) — *in active development*
-- **Phase 1.5** — AI Component Security
-- **Phase 2** — AI Security Testing (optional future)
-- **Phase 3** — Test Packs
-- **Phase 4** — Enterprise (Commercial)
-- **Phase 5** — Community Intelligence
+- **Completed in 1.3**: KYA manifest, baseline/new-regressed gating,
+  suppressions, policy-as-code, local SQLite registry, registry CLI.
+- **Next focus**: adapter depth improvements, governance signal detection,
+  richer dataflow/context precision, and optional enterprise-scale workflows.
 
 <img width="1024" height="1024" alt="SafeAI_Roadmap" src="https://github.com/user-attachments/assets/2cdd1a8a-b4ae-4e1f-8f85-0108fdeb3194" />
 

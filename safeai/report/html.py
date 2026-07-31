@@ -37,6 +37,61 @@ def _findings_rows(findings):
     return "\n".join(rows)
 
 
+def _kya_section(report):
+    """Render the Know Your Agent (KYA) section: agents, policy, limitations.
+
+    Only emitted when KYA data is present (scan ran through the 1.3+
+    pipeline). Contains static-analysis evidence only — no secrets, no
+    raw source values.
+    """
+    agents = report.get("kya_agents")
+    registry = report.get("registry") or {}
+    policy = report.get("policy_decision") or {}
+    if agents is None and not policy:
+        return ""
+
+    rows = []
+    for agent in agents or []:
+        caps = ", ".join(sorted({str(c.get("name", "")) for c in agent.get("capabilities") or [] if c.get("name")})) or "-"
+        locations = ", ".join(
+            f"{loc.get('path')}:{loc.get('line_start')}" for loc in (agent.get("source_locations") or [])
+        ) or "-"
+        rows.append(
+            "<tr>"
+            f"<td>{escape(str(agent.get('name', '')))}</td>"
+            f"<td>{escape(str(agent.get('agent_id', '')))}</td>"
+            f"<td>{escape(str(agent.get('framework', '')))}</td>"
+            f"<td>{escape(str(agent.get('agent_type', '')))}</td>"
+            f"<td>{escape(caps)}</td>"
+            f"<td>{escape(locations)}</td>"
+            f"<td>{escape(str(agent.get('confidence', '')))}</td>"
+            "</tr>"
+        )
+
+    registry_html = ""
+    if registry:
+        registry_html = (
+            f"<p class='muted'>Registry: {escape(str(registry.get('state', 'skipped')))}"
+            + (f" — {escape(str(registry.get('path')))}" if registry.get("path") else "")
+            + "</p>"
+        )
+
+    policy_html = ""
+    if policy:
+        reasons = "".join(f"<li>{escape(str(r))}</li>" for r in (policy.get("reasons") or []))
+        policy_html = f"<p><strong>Policy outcome:</strong> {escape(str(policy.get('outcome', '')))}</p><ul>{reasons}</ul>"
+
+    return f"""
+    <h2>Know Your Agent (KYA)</h2>
+    {registry_html}
+    {policy_html}
+    <table>
+      <thead><tr><th>Agent</th><th>Agent ID</th><th>Framework</th><th>Type</th><th>Capabilities (static evidence)</th><th>Source</th><th>Confidence</th></tr></thead>
+      <tbody>{''.join(rows) or "<tr><td colspan='7' class='muted'>No agents/workflows detected in source/configuration.</td></tr>"}</tbody>
+    </table>
+    <p class='muted'>SafeAI results are static analysis evidence and do not verify deployed runtime permissions, identities, or behavior.</p>"""
+
+
 def write_html(report, path):
     trust = report.get("trust_score", {})
     categories = trust.get("categories", {})
@@ -129,6 +184,8 @@ def write_html(report, path):
       <thead><tr><th>Severity</th><th>Rule</th><th>Location</th><th>Message</th><th>Evidence</th><th>Recommendations</th></tr></thead>
       <tbody>{_findings_rows(findings)}</tbody>
     </table>
+
+    {_kya_section(report)}
   </div>
 </body>
 </html>"""

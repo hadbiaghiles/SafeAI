@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0-beta] - 2026-07-31
+
+### Added — KYA Baseline & Local Registry
+
+- **Canonical KYA manifest** (`safeai-manifest.json`, schema v1.0): the
+  portable public contract for scan-derived agent evidence, written via
+  `--manifest`. See `KYA_MANIFEST.md`.
+- **Local SQLite KYA registry** at `.safeai/registry.db`, created/updated
+  automatically on interactive scans (auto-disabled when `CI` is set).
+  Historical snapshots are append-only. See `REGISTRY.md`.
+- **`safeai registry` command group**: `list`, `show`, `history`, `diff`,
+  `export` with `--registry PATH` and `--format table|json`.
+- **Deterministic finding fingerprints** (documented SHA-256 algorithm),
+  stable `finding_id`s, confidence labels (`high|medium|low`), provenance
+  records, and remediation defaults for high-value rules.
+- **Baseline comparison** (`--baseline`): classifies findings as
+  new/existing/resolved; accepts manifests or legacy JSON reports.
+- **`--fail-on-new`**: opt-in gating on new/regressed findings only.
+  Existing `--fail-on` semantics are unchanged without it.
+- **Suppression workflow** (`.safeai/suppressions.yml`): required
+  reason/owner/created, optional expiry and path scope; expired entries
+  warn; suppressed findings stay visible and are excluded from gating.
+- **Minimal policy-as-code** (`.safeai/policy.yml`): `allow|warn|
+  require_review|deny` with rule/severity/capability/framework/agent/path/
+  MCP-posture selectors; deterministic evaluation; outcome in terminal,
+  manifest, HTML, and JSON. `deny` fails the scan.
+- New scan flags: `--manifest`, `--registry`, `--no-registry`,
+  `--strict-registry`, `--policy`, `--suppressions`, `--fail-on-new`.
+- Terminal/HTML/SARIF output: KYA section, registry status, policy
+  outcome, baseline counters, SARIF `partialFingerprints` and rule help
+  text.
+- Docs: `KYA_MANIFEST.md`, `REGISTRY.md`, `LIMITATIONS.md`; maturity
+  categories in `FRAMEWORK_SUPPORT.md`; README/USER_GUIDE KYA sections.
+- 66 new tests covering manifest determinism, fingerprints, baseline,
+  suppressions, policy, registry persistence/queries/CLI, redaction, and
+  CI behavior.
+
+### Changed
+
+- Scan engine skips `.safeai/` and SafeAI-generated artifacts (manifests,
+  JSON reports) to prevent findings feedback loops. The JSON report now
+  carries a `report_type: safeai.scan` marker (additive).
+- JSON report findings gain additive keys (`fingerprint`, `finding_id`,
+  `status`, `confidence_label`, `provenance`); no keys removed or retyped.
+- `--baseline` still feeds legacy capability diff when given a legacy JSON
+  report, and now also drives fingerprint comparison.
+- Version bumped to `1.3.0b0` (`safeai/__init__.py` now matches
+  `pyproject.toml`).
+
+### Backward compatibility
+
+- Existing CLI usage, exit codes, and JSON/HTML/SARIF shapes are preserved;
+  all schema changes are additive. The manifest is a new artifact, versioned
+  independently (`schema_version: 1.0`).
+- Registry write failures never fail a scan unless `--strict-registry` is
+  passed (exit code 2).
+
 ## [1.2.0] - 2026-07-26
 
 ### Added

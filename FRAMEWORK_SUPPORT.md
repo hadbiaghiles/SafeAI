@@ -2,27 +2,40 @@
 
 This document details the detection approach, discovered artifacts, capabilities, and limitations for each supported AI agent framework.
 
+## Maturity Categories
+
+| Category | Meaning |
+|----------|---------|
+| **Supported** | Full detection, discovery, capability, and risk analysis with regression tests |
+| **Partial** | Reliable detection and discovery; capability/risk analysis covers common patterns |
+| **Experimental** | Detection and basic artifact discovery; framework-specific analysis is limited |
+| **Detection-only** | Presence detection only; no meaningful artifact extraction yet |
+| **Planned** | Not yet implemented |
+
+No framework is currently rated **Supported** — SafeAI is in early preview and
+we deliberately do not overclaim coverage.
+
 ---
 
 ## Framework Support Summary
 
-| Framework | Detection Method | Discovery Depth | Capability Analysis | Status |
-|-----------|-----------------|----------------|-------------------|--------|
-| LangGraph | AST + regex | Nodes, edges, tools, models, memory | Shell, filesystem, memory, planner | Early Preview |
-| CrewAI | AST + regex | Agents, tasks, tools, models, memory | Shell, memory, delegations | Early Preview |
-| LangChain | AST + metadata + regex | Agents, chains, tools, memory, models | Shell, memory, planner | Early Preview |
-| Semantic Kernel | AST + metadata + regex | Workflows, plugins, memory, models, skills | Shell, memory, planner | Early Preview |
-| OpenAI Agents SDK | AST + metadata + regex | Agents, tools, handoffs, MCP | Multi-agent, delegation, MCP | Early Preview |
-| Microsoft Agent Framework | AST + config + deps + regex | Agents, workflows, tools, memory, models | Cloud, memory | Early Preview |
-| Azure AI Foundry | Configuration | Tools, models from YAML | Cloud | Early Preview |
-| Bedrock Agent | Configuration | Tools from JSON | (minimal) | Early Preview |
-| Claude Code | CLAUDE.md + .claude config | Agents, tools, models, MCP references | Shell, filesystem, MCP | Early Preview |
-| Google ADK | AST + imports | Agents, workflows, tools, models | External APIs | Early Preview |
-| Mastra | AST + imports | Agents, workflows, tools, models | Multi-agent, RAG, external APIs | Early Preview |
-| Haystack | AST + imports | Pipelines, agents, tools, generators | RAG, external APIs, browser | Early Preview |
-| LlamaIndex | AST + imports | Agents, tools, indexes, models | RAG, databases, external APIs | Early Preview |
-| Dify | YAML/JSON + references | Workflows, agents, tools, models | Shell, databases, external APIs | Early Preview |
-| n8n | Workflow JSON + references | Workflows, nodes, connections | Shell, databases, email, external APIs | Early Preview |
+| Framework | Detection Method | Discovery Depth | Capability Analysis | Risk Analysis | Maturity |
+|-----------|-----------------|----------------|---------------------|---------------|----------|
+| LangGraph | AST + regex | Nodes, edges, tools, models, memory | Shell, filesystem, memory, planner | Partial | Partial |
+| CrewAI | AST + regex | Agents, tasks, tools, models, memory | Shell, memory, delegations | Partial | Partial |
+| LangChain | AST + metadata + regex | Agents, chains, tools, memory, models | Shell, memory, planner | Partial | Partial |
+| Semantic Kernel | AST + metadata + regex | Workflows, plugins, memory, models, skills | Shell, memory, planner | Partial | Partial |
+| OpenAI Agents SDK | AST + metadata + regex | Agents, tools, handoffs, MCP | Multi-agent, delegation, MCP | Partial | Partial |
+| Microsoft Agent Framework | AST + config + deps + regex | Agents, workflows, tools, memory, models | Cloud, memory | Minimal | Experimental |
+| Azure AI Foundry | Configuration | Tools, models from YAML | Cloud | Minimal | Experimental |
+| Bedrock Agent | Configuration | Tools from JSON | (minimal) | Minimal | Experimental |
+| Claude Code | CLAUDE.md + .claude config | Agents, tools, models, MCP references | Shell, filesystem, MCP | Minimal | Experimental |
+| Google ADK | AST + imports | Agents, workflows, tools, models | External APIs | Minimal | Experimental |
+| Mastra | AST + imports | Agents, workflows, tools, models | Multi-agent, RAG, external APIs | Minimal | Experimental |
+| Haystack | AST + imports | Pipelines, agents, tools, generators | RAG, external APIs, browser | Minimal | Experimental |
+| LlamaIndex | AST + imports | Agents, tools, indexes, models | RAG, databases, external APIs | Minimal | Experimental |
+| Dify | YAML/JSON + references | Workflows, agents, tools, models | Shell, databases, external APIs | Minimal | Experimental |
+| n8n | Workflow JSON + references | Workflows, nodes, connections | Shell, databases, email, external APIs | Minimal | Experimental |
 
 ---
 
