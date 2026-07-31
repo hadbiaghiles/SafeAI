@@ -17,7 +17,10 @@ from safeai.kya.registry import (
 
 
 def _scan(root, tmp_path, extra=None):
+    registry = os.path.join(root, ".safeai", "registry.db")
     argv = ["scan", root, "--sarif", os.path.join(tmp_path, "r.sarif")]
+    if not extra or ("--registry" not in extra and "--no-registry" not in extra):
+        argv += ["--registry", registry]
     if extra:
         argv += extra
     return main(argv)

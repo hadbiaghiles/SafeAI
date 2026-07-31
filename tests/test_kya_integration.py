@@ -71,7 +71,17 @@ def test_secret_redaction_end_to_end(tmp_path):
     )
     manifest_path = os.path.join(str(root), "safeai-manifest.json")
     sarif_path = os.path.join(str(tmp_path), "out.sarif")
-    main(["scan", str(root), "--manifest", manifest_path, "--sarif", sarif_path])
+    registry_path = os.path.join(str(root), ".safeai", "registry.db")
+    main([
+        "scan",
+        str(root),
+        "--manifest",
+        manifest_path,
+        "--registry",
+        registry_path,
+        "--sarif",
+        sarif_path,
+    ])
 
     with open(manifest_path, encoding="utf-8") as fh:
         manifest_raw = fh.read()
@@ -92,9 +102,11 @@ def test_secret_redaction_end_to_end(tmp_path):
 def test_capability_change_across_versions(kya_project, tmp_path):
     """v1 -> v2 introduces HTTP capability findings; registry diff surfaces changes."""
     reg = kya_project["registry"]
-    main(["scan", kya_project["root"], "--sarif", os.path.join(tmp_path, "r.sarif")])
+    main(["scan", kya_project["root"], "--registry", reg,
+          "--sarif", os.path.join(tmp_path, "r.sarif")])
     kya_project["write_version"](kya_project["v2"])
-    main(["scan", kya_project["root"], "--sarif", os.path.join(tmp_path, "r.sarif")])
+    main(["scan", kya_project["root"], "--registry", reg,
+          "--sarif", os.path.join(tmp_path, "r.sarif")])
 
     from safeai.kya.registry import connect, list_agents
     conn = connect(reg)

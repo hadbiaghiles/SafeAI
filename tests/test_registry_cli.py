@@ -7,9 +7,23 @@ from safeai.cmd.cli import main
 
 
 def _two_scans(kya_project, tmp_path):
-    main(["scan", kya_project["root"], "--sarif", os.path.join(tmp_path, "r.sarif")])
+    main([
+        "scan",
+        kya_project["root"],
+        "--registry",
+        kya_project["registry"],
+        "--sarif",
+        os.path.join(tmp_path, "r.sarif"),
+    ])
     kya_project["write_version"](kya_project["v2"])
-    main(["scan", kya_project["root"], "--sarif", os.path.join(tmp_path, "r.sarif")])
+    main([
+        "scan",
+        kya_project["root"],
+        "--registry",
+        kya_project["registry"],
+        "--sarif",
+        os.path.join(tmp_path, "r.sarif"),
+    ])
 
 
 def _agent_id(registry_path):
@@ -80,8 +94,10 @@ def test_registry_diff(kya_project, tmp_path, capsys):
 
 
 def test_registry_diff_identical(kya_project, tmp_path):
-    main(["scan", kya_project["root"], "--sarif", os.path.join(tmp_path, "r.sarif")])
-    main(["scan", kya_project["root"], "--sarif", os.path.join(tmp_path, "r.sarif")])
+    main(["scan", kya_project["root"], "--registry", kya_project["registry"],
+          "--sarif", os.path.join(tmp_path, "r.sarif")])
+    main(["scan", kya_project["root"], "--registry", kya_project["registry"],
+          "--sarif", os.path.join(tmp_path, "r.sarif")])
     reg = kya_project["registry"]
     agent_id = _agent_id(reg)
     rc = main(["registry", "diff", agent_id, "--from", "previous", "--to", "latest", "--registry", reg])
@@ -112,7 +128,8 @@ def test_registry_export(kya_project, tmp_path):
 
 
 def test_registry_export_excludes_suppressed_by_default(kya_project, tmp_path):
-    main(["scan", kya_project["root"], "--sarif", os.path.join(tmp_path, "r.sarif")])
+    main(["scan", kya_project["root"], "--registry", kya_project["registry"],
+          "--sarif", os.path.join(tmp_path, "r.sarif")])
     reg = kya_project["registry"]
 
     from safeai.kya.registry import connect, get_scan_findings, latest_scan_id
@@ -130,7 +147,8 @@ suppressions:
     owner: "team"
     created: "2026-01-01"
 """)
-    main(["scan", kya_project["root"], "--sarif", os.path.join(tmp_path, "r.sarif")])
+    main(["scan", kya_project["root"], "--registry", kya_project["registry"],
+          "--sarif", os.path.join(tmp_path, "r.sarif")])
 
     out_default = os.path.join(str(tmp_path), "inv_default.json")
     out_with = os.path.join(str(tmp_path), "inv_with.json")
@@ -178,7 +196,8 @@ def test_registry_diff_is_agent_scoped(tmp_path, capsys):
     )
 
     sarif = os.path.join(tmp_path, "r.sarif")
-    main(["scan", str(root), "--sarif", sarif])
+    reg = os.path.join(str(root), ".safeai", "registry.db")
+    main(["scan", str(root), "--registry", reg, "--sarif", sarif])
 
     # Change only agent_a file between scans.
     (root / "agent_a.py").write_text(
@@ -193,9 +212,8 @@ def test_registry_diff_is_agent_scoped(tmp_path, capsys):
         "    return graph\n",
         encoding="utf-8",
     )
-    main(["scan", str(root), "--sarif", sarif])
+    main(["scan", str(root), "--registry", reg, "--sarif", sarif])
 
-    reg = os.path.join(str(root), ".safeai", "registry.db")
     capsys.readouterr()
     main(["registry", "list", "--registry", reg, "--format", "json"])
     listing = json.loads(capsys.readouterr().out)
