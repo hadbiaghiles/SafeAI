@@ -22,8 +22,23 @@ def print_summary(report):
     if report.get("diagnostics"):
         print("Diagnostics:", len(report["diagnostics"]))
     if report.get("capability_diff"):
-        diff = report["capability_diff"]["counts"]
+        capability_diff = report["capability_diff"]
+        diff = capability_diff["counts"]
         print("Capability diff:", f"+{diff['added']} / -{diff['removed']} / ~{diff['changed']}")
+        if capability_diff.get("schema_version", 1) >= 2:
+            if not capability_diff.get("baseline_tool_attribution", True):
+                print("Tool diff: baseline predates tool-level tracking; "
+                      "showing capability-level diff only.")
+            else:
+                print(
+                    "Tool diff:",
+                    f"{diff.get('tools_new', 0)} new /",
+                    f"{diff.get('tools_escalated', 0)} escalated /",
+                    f"{diff.get('tools_removed', 0)} removed",
+                )
+            highest = capability_diff.get("highest_escalation")
+            if highest:
+                print("Highest escalation:", highest)
     if report.get("trust_score"):
         print("Overall AI Risk Score:", report["trust_score"].get("overall_ai_risk_score"))
 
@@ -83,3 +98,12 @@ def print_summary(report):
         print()
         print("Note: SafeAI results are static analysis evidence and do not verify")
         print("deployed runtime permissions, identities, or behavior.")
+
+    # Assurance boundary: what this particular scan could not see. Printed
+    # last so it qualifies the findings above rather than prefacing them.
+    boundary = report.get("assurance_boundary")
+    if isinstance(boundary, dict) and boundary.get("coverage_notes"):
+        print()
+        print("Coverage:")
+        for note in boundary["coverage_notes"]:
+            print(f"  - {note}")

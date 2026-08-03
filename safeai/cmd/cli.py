@@ -6,7 +6,9 @@ Usage::
                             [--manifest <path>] [--baseline <path>]
                             [--policy <path>] [--suppressions <path>]
                             [--registry <path> | --no-registry] [--strict-registry]
+                            [--pr-comment <path>] [--pr-comment-stdout]
                             [--fail-on <level>] [--fail-on-new]
+                            [--fail-on-escalation <level>]
     safeai registry list|show|history|diff|export ...
 
 KYA (Know Your Agent) behavior:
@@ -15,6 +17,9 @@ KYA (Know Your Agent) behavior:
   * A local SQLite registry at ``.safeai/registry.db`` is created or
     updated by default on interactive scans (auto-disabled in CI unless
     ``--registry`` is given explicitly).
+  * ``--pr-comment`` writes a reviewer-facing Markdown summary of
+    capability escalations to a file. SafeAI never posts it anywhere;
+    publishing is the CI workflow's job.
   * All outputs remain local: no network calls, no uploads.
 """
 
@@ -68,6 +73,14 @@ def _build_parser():
                       help="Do not create or update the local KYA registry")
     scan.add_argument("--strict-registry", action="store_true",
                       help="Fail the scan if registry persistence fails")
+    scan.add_argument("--pr-comment", dest="pr_comment_path",
+                      help="Write a reviewer-facing Markdown summary of capability "
+                           "escalations to PATH (never posted anywhere)")
+    scan.add_argument("--pr-comment-stdout", action="store_true",
+                      help="Print the PR comment Markdown to stdout")
+    scan.add_argument("--fail-on-escalation", choices=["critical", "high", "medium"],
+                      help="Fail the scan when a capability escalation at or above "
+                           "this severity is detected (requires --baseline)")
     scan.add_argument("--policy",
                       help="Policy-as-code YAML file (default: <scan-root>/.safeai/policy.yml if present)")
     scan.add_argument("--suppressions",
@@ -138,8 +151,12 @@ def _run_scan_command(args, parser):
             baseline_fps, baseline_doc = kya_baseline.load_baseline(args.baseline)
         except (TypeError, ValueError) as exc:
             parser.error(str(exc))
-        if isinstance(baseline_doc, dict) and "normalized_capabilities" in baseline_doc:
-            baseline_report = baseline_doc  # legacy report: keep capability diff behavior
+        # A legacy JSON report supplies ``normalized_capabilities``; a KYA
+        # manifest (v1.1+) supplies ``tool_surface``. Either enables a diff.
+        if isinstance(baseline_doc, dict) and (
+            "normalized_capabilities" in baseline_doc or "tool_surface" in baseline_doc
+        ):
+            baseline_report = baseline_doc
 
     report = run_scan(args.directory, args.rules, baseline_report=baseline_report)
     completed_at = utc_now_iso()
@@ -274,6 +291,18 @@ def _run_scan_command(args, parser):
         from safeai.report.html import write_html
         write_html(report, args.html_path)
 
+    # --- Reviewer-facing PR comment (written locally; never posted) ---
+    if args.pr_comment_path or args.pr_comment_stdout:
+        from safeai.kya.ci_context import detect_ci_context
+        from safeai.report.pr_comment import render_pr_comment
+
+        comment = render_pr_comment(report, ci_context=detect_ci_context())
+        if args.pr_comment_path:
+            with open(args.pr_comment_path, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(comment)
+        if args.pr_comment_stdout:
+            sys.stdout.write(comment)
+
     from safeai.report.terminal import print_summary
     print_summary(report)
 
@@ -294,6 +323,17 @@ def _run_scan_command(args, parser):
     fail = any(LEVELS.index(f["severity"]) >= threshold_index for f in candidates)
     if policy_decision["outcome"] == "deny":
         fail = True
+
+    # --fail-on-escalation is a separate axis from finding severity: a
+    # change can add no new findings while still handing a named tool new
+    # authority. It never relaxes the existing thresholds, only adds to
+    # them, so default exit semantics are unchanged.
+    if args.fail_on_escalation:
+        if not args.baseline:
+            parser.error("--fail-on-escalation requires --baseline")
+        highest = (report.get("capability_diff") or {}).get("highest_escalation")
+        if highest in LEVELS and LEVELS.index(highest) >= LEVELS.index(args.fail_on_escalation):
+            fail = True
 
     return 1 if fail else 0
 
