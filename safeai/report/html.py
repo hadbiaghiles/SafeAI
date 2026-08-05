@@ -73,6 +73,62 @@ def _escalation_section(report):
     <p class='muted'>Highest escalation: {escape(str(highest or 'none'))}</p>"""
 
 
+def _dependency_section(report):
+    """Render the CE 1.5 dependency inventory + correlation summary."""
+    inventory = report.get("dependency_inventory") or []
+    correlation = report.get("dependency_correlation") or {}
+    if not inventory and not correlation:
+        return ""
+    parts = []
+
+    if inventory:
+        rows = [
+            [
+                escape(str(e.get("name", ""))),
+                "Yes" if e.get("secret") else "No",
+                str(e.get("source_count", 0)),
+                ", ".join(
+                    f"{escape(str(s.get('file', '')))}:{s.get('line', '')}"
+                    for s in (e.get("sources") or [])[:3]
+                ) or "-",
+            ]
+            for e in inventory
+        ]
+        parts.append(html_kit.data_table(
+            ["Name", "Secret-backed", "Refs", "Sources"],
+            rows,
+            empty="No external configuration/credential references detected.",
+        ))
+
+    counts = correlation.get("counts") or {}
+    undeclared = counts.get("undeclared", 0)
+    orphaned = counts.get("orphaned", 0)
+    families = counts.get("families") or {}
+    fam_rows = [
+        [escape(str(fam)), str(info.get("referenced", 0)),
+         "Yes" if info.get("declared") else "No"]
+        for fam, info in sorted(families.items())
+    ]
+    parts.append(f"""
+    <h3>Correlation</h3>
+    <div class='hero'>
+      {html_kit.kpi("Undeclared capability candidates", undeclared, accent='#b45309')}
+      {html_kit.kpi("Orphaned declared tools", orphaned, accent='#6b7280')}
+    </div>
+    {html_kit.data_table(
+        ["Family", "Referenced names", "Declared"],
+        fam_rows,
+        empty="No correlated families.",
+        searchable=False,
+    )}
+    <p class='muted'>Name-family heuristic correlation from static references; not proof of runtime behaviour.</p>""")
+
+    return f"""
+    <h2>Dependency Inventory & Correlation</h2>
+    {'<h3>Referenced configuration / credentials</h3><p class="muted">Names and source locations only — values are never read or stored.</p>' if inventory else ''}
+    {''.join(parts)}"""
+
+
 def _kya_section(report):
     """Render the Know Your Agent section: agents, policy, registry status."""
     agents = report.get("kya_agents")
@@ -257,6 +313,8 @@ def write_html(report, path):
     {html_kit.data_table(["Capability", "Category", "Frameworks", "Confidence", "Evidence"], capability_rows, empty="No capabilities detected.")}
 
     {_escalation_section(report)}
+
+    {_dependency_section(report)}
 
     <h2>Governance Summary</h2>
     {html_kit.data_table(

@@ -30,6 +30,8 @@ _ANALYZER_BY_RULE_PREFIX = {
     "PROMPT_FILE_": "prompt_file",
     "PROMPT_": "prompt",
     "DATA_LEAKAGE": "data_leakage",
+    "ENV_DEP_": "env_dependency",
+    "DEP_": "env_dependency",
     "MCP_": "mcp",
     "SKILL_": "skill",
     "TOOL_DEF_": "tool_def",

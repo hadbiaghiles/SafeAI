@@ -140,6 +140,19 @@ def build_manifest(report, *, project, scan_meta, safeai_meta, agents,
             }
             for c in (report.get("components") or [])
         ],
+        # CE 1.5: referenced external config/credential names (never values).
+        "dependency_inventory": [
+            {
+                "name": e.get("name"),
+                "secret": bool(e.get("secret")),
+                "source_count": e.get("source_count", 0),
+                "sources": [
+                    {"path": normalize_path(s.get("file")), "line": int(s.get("line") or 0)}
+                    for s in (e.get("sources") or [])
+                ],
+            }
+            for e in (report.get("dependency_inventory") or [])
+        ],
         "findings": findings,
         "summary": {
             "risk_score": trust.get("overall_ai_risk_score"),
@@ -147,6 +160,7 @@ def build_manifest(report, *, project, scan_meta, safeai_meta, agents,
             "capability_counts": _capability_counts(agents, report),
             "agent_count": len(agents),
             "component_count": len(report.get("components") or []),
+            "dependency_count": len(report.get("dependency_inventory") or []),
             "policy_decision": policy_decision or {"outcome": "warn", "reasons": ["No policy file supplied; default posture."]},
         },
         # v1.2: the assurance boundary states what this scan verified and

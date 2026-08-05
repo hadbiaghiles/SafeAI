@@ -4,7 +4,7 @@ SafeAI is a **Static AI Capability & Risk Analyzer** — think SonarQube for AI 
 
 This document describes the roadmap across **two editions**: the open-source **Community Edition (Apache 2.0, offline, local-first)** and the commercial **Corporate Edition (evidence and governance plane)**. Milestones are not strictly sequential; work may proceed in parallel where dependencies allow.
 
-> **Current state:** v1.4-b shipped. Community Edition **CE 1.4 (Reviewable Change)** is substantially complete; planned work there is limited to a handful of governance and surface items. CE 1.5/1.6/2.0 and the entire Corporate Edition are planned.
+> **Current state:** v1.4-b shipped; CE 1.5 environment-inventory and dependency-correlation work is in progress on this branch. Community Edition **CE 1.4 (Reviewable Change)** is substantially complete; CE 1.5/1.6/2.0 and the entire Corporate Edition are planned.
 
 ---
 
@@ -64,10 +64,10 @@ Status legend: ✅ **Shipped** · 🔄 **In progress / partial** · ⏳ **Planne
 
 *Goal: close the gap between what an agent declares and what it actually needs to run.*
 
-**Status: ⏳ planned. Small overlaps do ship in the current analyzers; the items below are the planned surface.**
+**Status: 🔄 partial — CE 1.5 environment inventory and correlation shipped; remaining surface items planned below.**
 
-- ⏳ **Secret and configuration dependency inventory** — `os.getenv`, `process.env`, `${VAR}`, `.env`, Kubernetes Secrets, AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, HashiCorp Vault — names and sources only, never values.
-- ⏳ **Dependency-to-capability correlation** — required credential with no matching declared tool = undeclared capability candidate; declared tool with no credential path = probable dead or misconfigured tool.
+- ✅ **Secret and configuration dependency inventory** — names and sources only, never values: `os.getenv`, `os.environ`, `process.env`, dotenv keys, shell/template interpolation, AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, HashiCorp Vault, Kubernetes `secretKeyRef` (`safeai/analyzers/env_dependency`).
+- ✅ **Dependency-to-capability correlation** — referenced credential/config with no matching declared capability = undeclared-capability candidate; declared credential-demanding capability with no referenced config = orphaned tool (`safeai/analysis/dependency_correlation.py`, rules `DEP_*`). Correlation findings feed severity, trust score, SARIF, HTML and the manifest. Matching uses whole-word-segment family keywords (no substring false positives on `jdbc`/`rabbit_mq`), with provider families taking precedence over the generic `api` fallback; the payload-carrying `ENV_DEP_INVENTORY` finding is exempt from suppression so the inventory section can never be blanked.
 - ⏳ **Tool → implementation mapping** — declaration site, implementation site, unresolved/orphan cases in both directions.
 - ⏳ **Command-aware MCP analysis** — resolve in-repo and vendored server entrypoints statically, depth-capped, never executed, with explicit resolved / unresolved-command labelling.
 - ⏳ **External write target taxonomy** — filesystem, databases, S3, blob storage, GitHub, Slack, external APIs — promoted to a first-class report view.
@@ -75,7 +75,7 @@ Status legend: ✅ **Shipped** · 🔄 **In progress / partial** · ⏳ **Planne
 - ⏳ **Adapter completion** — AutoGen, LangGraph `add_conditional_edges`, browser-automation rule split (Playwright / Selenium / browser_use).
 
 ### Exit criterion
-> SafeAI reports the credentials, destinations and implementations an agent actually depends on, and flags mismatches between declared and required capability — with no cloud access and no execution.
+> SafeAI reports the credentials and destinations an agent actually depends on, and flags mismatches between declared and required capability — with no cloud access and no execution.
 
 ---
 
@@ -191,6 +191,7 @@ Mindset: sequencing matters more than features — get it wrong and CE becomes u
 
 ## Registry of latest shipped work (this branch, see CHANGELOG/releases)
 
+- **CE 1.5 (in progress)** — environment & credential dependency inventory (`os.getenv`/`os.environ`/`process.env`/dotenv/shell/template, AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, HashiCorp Vault, Kubernetes `secretKey` — names and sources only, never values) and dependency-to-capability correlation (`DEP_UNDECLARED_CAPABILITY`, `DEP_ORPHANED_TOOL`), surfaced in terminal, HTML, SARIF, and the KYA manifest (`dependency_inventory`, `dependency_correlation`) with a reviewable name-family heuristic.
 - **v1.4-b** — unified **org-wide shared registry** (`SAFEAI_REGISTRY` env var or `~/.safeai/registry.db`), self-contained **HTML reports** for scan and registry output, docs aligned to the v1.4 capability model.
 - **v1.4** — tool-centric capability model + access modes, 14 declarative escalation rules with subsumption, per-tool capability diff, deep **Claude Code** analysis, **PR comment** review output, **assurance boundary**, governed suppressions policy-as-code, severity centralization (`safeai/severity.py`), KYA registry schema v2 migration.
 - **Architecture refactor (P1)** — `safeai/kya/registry` split into `schema/connection/persist/queries`, `ScanOrchestrator` extracted from `run_scan`, `ScanPostProcessor` extracted from the scan CLI command. No public API break.

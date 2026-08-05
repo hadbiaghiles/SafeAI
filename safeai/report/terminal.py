@@ -19,6 +19,17 @@ def print_summary(report):
             kind = component.get("type", "unknown")
             component_counts[kind] = component_counts.get(kind, 0) + 1
         print("Components:", ", ".join(f"{k}={v}" for k, v in sorted(component_counts.items())) or "none")
+    inventory = report.get("dependency_inventory")
+    if inventory is not None:
+        print("External config/credential names:", len(inventory))
+    correlation = report.get("dependency_correlation")
+    if correlation and correlation.get("counts"):
+        counts = correlation["counts"]
+        print(
+            "Dependency correlation:",
+            f"{counts.get('undeclared', 0)} undeclared-capability candidates /",
+            f"{counts.get('orphaned', 0)} orphaned declared tools",
+        )
     if report.get("diagnostics"):
         print("Diagnostics:", len(report["diagnostics"]))
     if report.get("capability_diff"):

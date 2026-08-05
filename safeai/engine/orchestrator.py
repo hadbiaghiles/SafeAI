@@ -35,6 +35,7 @@ from safeai.analysis.tool_surface import build_tool_surface
 from safeai.analyzers.capability.analyzer import CapabilityAnalyzer
 from safeai.analyzers.claude_code.analyzer import ClaudeCodeAnalyzer
 from safeai.analyzers.data_leakage.analyzer import DataLeakageAnalyzer
+from safeai.analyzers.env_dependency.analyzer import EnvDependencyAnalyzer
 from safeai.analyzers.mcp.analyzer import MCPAnalyzer
 from safeai.analyzers.prompt.analyzer import PromptAnalyzer
 from safeai.frameworks import discover_parsers
@@ -278,6 +279,8 @@ class ScanOrchestrator:
         self.findings = []
         self.mcp_assets = []
         self.mcp_capabilities = []
+        self.env_inventory = []
+        self.dependency_correlation = None
         self.counts = {}
         self.trust_score = {}
         self.project_graph = {}
@@ -375,6 +378,7 @@ class ScanOrchestrator:
             CapabilityAnalyzer(),
             PromptAnalyzer(),
             DataLeakageAnalyzer(),
+            EnvDependencyAnalyzer(),
             MCPAnalyzer(),
             ClaudeCodeAnalyzer(),
         ]
@@ -426,12 +430,24 @@ class ScanOrchestrator:
                 self.counts[sev] = 0
             self.counts[sev] += 1
 
+    def _extract_env_inventory(self):
+        """Extract the env-dependency inventory from the carrying finding."""
+        self.env_inventory = []
+        for finding in self.findings:
+            if finding.get("rule_id") == "ENV_DEP_INVENTORY":
+                self.env_inventory = finding.get("dep_inventory") or []
+        return self.env_inventory
+
     def _relativize_report(self):
         # Normalize all paths in the report to be relative to the scanned
         # root so reports are portable and SARIF consumers (e.g. GitHub
         # code scanning) can map results back to repository files.
         for finding in self.findings:
             finding["file"] = _relativize(finding.get("file"), self.directory)
+        # Relativize inventory source locations (paths only, never values).
+        for entry in self.env_inventory:
+            for source in entry.get("sources") or []:
+                source["file"] = _relativize(source.get("file"), self.directory)
         for model in self.agent_models:
             model["file"] = _relativize(model.get("file"), self.directory)
         for entry in self.parse_provenance:
@@ -446,11 +462,15 @@ class ScanOrchestrator:
             diagnostic["file"] = _relativize(diagnostic.get("file"), self.directory)
 
     def assemble(self):
-        """Stage 6: score, relativize paths, build the final report document."""
+        """Stage 6: correlate, build the tool surface, then a single
+        score/relativize pass over the final finding set.
+
+        Correlation (CE 1.5) must run before scoring so its findings are
+        included in counts, the trust score, and path relativization —
+        exactly once, avoiding a second pass over already-relativized data.
+        """
         self._extract_mcp_assets()
-        self._count_severities()
-        self.trust_score = score_report(self.findings)
-        self._relativize_report()
+        self._extract_env_inventory()
         self.project_graph = build_project_graph(
             self.agent_models, mcp_assets=self.mcp_assets, components=self.components
         )
@@ -483,8 +503,36 @@ class ScanOrchestrator:
         }
         # Per-tool capability surface (v1.4): the unit the diff compares and
         # the registry persists. Built from report data only — no extra file
-        # access.
+        # access. Requires only agent_models/mcp_assets, so it runs before
+        # scoring/counting below.
         self.report["tool_surface"] = build_tool_surface(self.report)
+        # Dependency-to-capability correlation (CE 1.5): match the
+        # env-dependency inventory against the declared tool surface. Findings
+        # are appended BEFORE the single count/score/relativize pass so they
+        # participate in severities, trust score, and path normalisation.
+        from safeai.analysis.dependency_correlation import correlate_dependencies
+
+        correlation_findings, self.dependency_correlation = correlate_dependencies(self.report)
+        if correlation_findings:
+            for finding in correlation_findings:
+                finding["file"] = _relativize(finding.get("file"), self.directory)
+                self.findings.append(finding)
+            self.findings.sort(key=lambda f: (
+                str(f.get("file") or ""),
+                int(f.get("line") or 0),
+                str(f.get("rule_id") or ""),
+            ))
+            self.report["findings"] = self.findings
+
+        self.report["dependency_inventory"] = self.env_inventory
+        self.report["dependency_correlation"] = self.dependency_correlation
+        # Single pass: counts, trust score, and relative paths, all over the
+        # complete finding set (core + component + correlation).
+        self._count_severities()
+        self.trust_score = score_report(self.findings)
+        self.report["counts"] = self.counts
+        self.report["trust_score"] = self.trust_score
+        self._relativize_report()
         # Assurance boundary (v1.4): what this scan did and did not verify.
         # Derived from the run itself, never a fixed disclaimer string.
         self.report["assurance_boundary"] = build_assurance_boundary(self.report)
