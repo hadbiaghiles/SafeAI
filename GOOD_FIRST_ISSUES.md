@@ -2,11 +2,11 @@
 
 Welcome, and thank you for considering contributing to SafeAI!
 
-This document lists **29 beginner-friendly issues** designed for first-time contributors. Each issue includes the files you'll need to modify, the tests you should write, and the acceptance criteria.
+This document indexes **29 beginner-friendly issues** designed for first-time contributors (12 currently open). Each issue includes the files you'll need to modify, the tests you should write, and the acceptance criteria.
 
 > **For maintainers:** These issues are defined in `.github/good-first-issues/` as YAML templates. Run the [create-good-first-issues workflow](../../actions/workflows/create-good-first-issues.yml) to create them in the GitHub issue tracker with the `good first issue` label. Once created, this file serves as a curated index.
 
-> **14 issues have already been completed** by community contributors. See the [Completed Issues](#-completed-issues) section at the bottom.
+> **17 issues have already been completed** by community and internal contributors. See the [Completed Issues](#-completed-issues) section at the bottom.
 
 ---
 
@@ -88,19 +88,22 @@ This document lists **29 beginner-friendly issues** designed for first-time cont
 ## Reports & Output
 
 ### 16. Improve terminal output readability
+- **Status:** ✅ Complete (v1.4) — severity-grouped summary, explicit counts, `Highest escalation` line, coverage/assurance notes
 - **Difficulty:** Easy | **Effort:** 3–4 hours
 - **Suggested files:** `safeai/report/terminal.py`
-- **Description:** Restructure the terminal scan summary to be more readable. Community feedback highlights that the current output is functional but hard to scan quickly. Improvements could include severity-grouped findings, better section headers, color coding, and clearer signal-to-noise ratio. See the existing HTML report for design inspiration.
+- **Description:** Original task restructured the terminal scan summary for readability. Now delivered: grouping by severity, clearer section headers, and a better signal-to-noise ratio (informed by the HTML report design).
 
 ### 17. Improve HTML report — add filtering and search
+- **Status:** ✅ Complete (v1.4-b) — client-side filter + searchable tables via `safeai/report/html_kit.py` (`data_table`, `data-filter`)
 - **Difficulty:** Medium | **Effort:** 4–6 hours
-- **Suggested files:** `safeai/report/html.py`
+- **Suggested files:** `safeai/report/html.py`, `safeai/report/html_kit.py`
 
 ### 18. Improve SARIF output — add code flow
 - **Difficulty:** Medium | **Effort:** 3–4 hours
 - **Suggested files:** `safeai/report/sarif.py`
 
 ### 19. Add Markdown report generator
+- **Status:** 🔄 Partial — a Markdown reviewer summary ships via `--pr-comment` (`safeai/report/pr_comment.py`); a standalone `--format markdown` report generator is still open
 - **Difficulty:** Easy | **Effort:** 3–4 hours
 - **Suggested files:** `safeai/report/markdown.py`
 
@@ -121,9 +124,10 @@ This document lists **29 beginner-friendly issues** designed for first-time cont
 ## Scoring & Trust Score
 
 ### 23. Tune trust score weighting for critical and high findings
+- **Status:** ✅ Complete (v1.4) — severity weighting shipped via `SEVERITY_POINTS` in `safeai/severity.py` (critical 25 / high 15 / medium 8 / low 4 / info 1), consumed by `safeai/scoring/engine.py`; category weights remain configurable (`config_weights`)
 - **Difficulty:** Easy | **Effort:** 2–3 hours
-- **Suggested files:** `safeai/scoring/engine.py`
-- **Description:** Community feedback suggests giving more weight to critical and high-severity findings in the trust score calculation. Currently all categories have equal weight (1.0). Evaluate and adjust `CATEGORY_WEIGHTS` and `SEVERITY_POINTS` in `safeai/scoring/engine.py` to reflect higher impact of critical/high findings, then validate with existing test fixtures.
+- **Suggested files:** `safeai/scoring/engine.py`, `safeai/severity.py`
+- **Description:** Weighted severity now drives the trust score; the original equal-weight-per-category note is superseded.
 
 ---
 
@@ -180,6 +184,14 @@ These issues have been implemented by community contributors and are now part of
 | 17 | Detect Slack integration | @yugaaank (PR #2) |
 | 18 | Detect Jira integration | @yugaaank (PR #2) |
 | 19 | Detect browser automation capability | @yugaaank (PR #2) |
+
+### Reports, Output & Scoring
+
+| # | Issue | Contributor |
+|---|-------|-------------|
+| 16 | Improve terminal output readability | SafeAI (v1.4) |
+| 17 | Improve HTML report — add filtering and search | SafeAI (v1.4-b) |
+| 23 | Tune trust score weighting for critical/high findings | SafeAI (v1.4) |
 
 ---
 
