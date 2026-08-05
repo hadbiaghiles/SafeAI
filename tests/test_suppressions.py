@@ -117,6 +117,30 @@ suppressions:
     assert out_scope["status"] == "new"
 
 
+def test_carrying_inventory_finding_not_suppressible(tmp_path):
+    # The ENV_DEP_INVENTORY finding carries the dependency inventory payload;
+    # a suppression must never blank it (CE 1.5 review #3).
+    path = _write(tmp_path, """
+suppressions:
+  - rule_id: ENV_DEP_INVENTORY
+    reason: "noise"
+    owner: "team"
+    created: "2026-01-01"
+""")
+    entries, _ = load_suppressions(path)
+    carrying = {
+        "rule_id": "ENV_DEP_INVENTORY",
+        "file": "src/app.py",
+        "severity": "info",
+        "dep_inventory": [{"name": "DATABASE_URL"}],
+    }
+    dep_finding = _finding(rule="DEP_ORPHANED_TOOL")
+    apply_suppressions([carrying, dep_finding], entries)
+    assert carrying.get("status") != "suppressed"
+    assert "dep_inventory" in carrying
+    assert dep_finding["status"] == "new"
+
+
 def test_suppressed_findings_stay_in_json_output(kya_project, tmp_path):
     # First scan to learn a fingerprint.
     first_json = os.path.join(str(tmp_path), "first.json")
@@ -125,7 +149,12 @@ def test_suppressed_findings_stay_in_json_output(kya_project, tmp_path):
     import json
     with open(first_json) as fh:
         report = json.load(fh)
-    fp = report["findings"][0]["fingerprint"]
+    carrying = {"ENV_DEP_INVENTORY", "MCP_ASSETS_DISCOVERED"}
+    fp = next(
+        f["fingerprint"]
+        for f in report["findings"]
+        if f.get("rule_id") not in carrying
+    )
 
     safeai_dir = os.path.join(kya_project["root"], ".safeai")
     os.makedirs(safeai_dir, exist_ok=True)

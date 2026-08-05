@@ -21,6 +21,12 @@ import yaml
 
 DEFAULT_SUPPRESSIONS_PATH = os.path.join(".safeai", "suppressions.yml")
 
+#: Findings that carry structural payloads (inventories, asset lists) consumed
+#: by reports and downstream correlation. They are informational carriers, not
+#: security verdicts, so they are never suppressed — a broad ``rule_id`` or
+#: ``path`` suppression must not be able to blank the inventory section.
+_CARRYING_RULE_IDS = frozenset({"ENV_DEP_INVENTORY", "MCP_ASSETS_DISCOVERED"})
+
 _REQUIRED_FIELDS = ("reason", "owner", "created")
 
 
@@ -124,6 +130,8 @@ def apply_suppressions(findings, entries):
     applied = []
     suppressed_count = 0
     for finding in findings:
+        if finding.get("rule_id") in _CARRYING_RULE_IDS:
+            continue
         for entry in entries:
             if entry.get("expired"):
                 continue

@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - unreleased
+
+### Added — Environment Dependency Inventory & Correlation (CE 1.5)
+
+- **Environment and credential dependency inventory**
+  (`safeai/analyzers/env_dependency/`): a new analyzer records *references* to
+  external configuration and credentials — `os.getenv`/`os.environ`,
+  `process.env`, dotenv keys, shell/template interpolation, AWS Secrets
+  Manager, Azure Key Vault, GCP Secret Manager, HashiCorp Vault, and Kubernetes
+  `secretKeyRef`. **Names and source locations only; values are never read,
+  masked, or stored**, preserving the source-private guarantee. Entries are
+  flagged `secret: true` when backed by a secret manager or a secret-ish name.
+- **Dependency-to-capability correlation**
+  (`safeai/analysis/dependency_correlation.py`): the inventory is matched
+  against the per-tool capability surface via a reviewable name-family keyword
+  model, producing two new findings:
+  - `DEP_UNDECLARED_CAPABILITY` (medium) — a referenced credential/config
+    family has no declared capability to consume it: a candidate undeclared
+    capability.
+  - `DEP_ORPHANED_TOOL` (low) — a credential-demanding capability is declared
+    with no matching credential/config reference anywhere: a probable dead or
+    misconfigured tool.
+- Correlation findings feed the severity counts, trust score, SARIF, terminal
+  and HTML outputs, and are written to the KYA manifest (`dependency_inventory`
+  and `dependency_correlation`, plus a `summary.dependency_count`).
+- New rules in `safeai/rules/base_rules.yaml`: `ENV_DEP_INVENTORY`,
+  `DEP_UNDECLARED_CAPABILITY`, `DEP_ORPHANED_TOOL`.
+
+### Fixed — CE 1.5 architecture review hardening
+
+- **Family matching is now word-segment based**
+  (`safeai/analysis/dependency_correlation.py`): names are split on
+  non-alphanumeric boundaries instead of raw substring matching, so short
+  tokens no longer false-positive inside unrelated words (e.g. `jdbc` no longer
+  maps to the database family via `db`). Provider-specific families
+  (`cloud`/`database`/`messaging`) take precedence over the generic `api`
+  fallback, keeping `SLACK_TOKEN` aligned with a declared `slack` capability and
+  eliminating simultaneous false `DEP_UNDECLARED_CAPABILITY` +
+  `DEP_ORPHANED_TOOL` pairs.
+- **Single scoring pass** (`safeai/engine/orchestrator.py`): correlation now
+  runs before the single count/score/relativize pass so its findings are
+  included exactly once; the second `_relativize_report()` call was removed.
+- **Payload-carrying findings are never suppressed**
+  (`safeai/kya/suppressions.py`): `ENV_DEP_INVENTORY` (and
+  `MCP_ASSETS_DISCOVERED`) are exempt from `apply_suppressions`, so a broad
+  `rule_id`/`path` suppression cannot blank the dependency-inventory section.
+
+### Notes
+
+- The informational `ENV_DEP_INVENTORY` finding is counted in the severity
+  breakdown and baseline; scans of repositories with a declared dependency
+  inventory will report one more finding than v1.4 for the same input.
+
 ## [1.4.0-beta] - 2026-08-02
 
 ### Added — Tool-Centric Capability Model & Escalation Detection

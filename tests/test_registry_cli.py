@@ -135,7 +135,12 @@ def test_registry_export_excludes_suppressed_by_default(kya_project, tmp_path):
     from safeai.kya.registry import connect, get_scan_findings, latest_scan_id
     conn = connect(reg)
     findings = get_scan_findings(conn, latest_scan_id(conn))
-    fp = findings[0]["fingerprint"]
+    carrying = {"ENV_DEP_INVENTORY", "MCP_ASSETS_DISCOVERED"}
+    fp = next(
+        f["fingerprint"]
+        for f in findings
+        if f.get("rule_id") not in carrying
+    )
     conn.close()
 
     safeai_dir = os.path.join(kya_project["root"], ".safeai")

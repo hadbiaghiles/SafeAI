@@ -275,3 +275,20 @@
   description: Claude Code configuration file could not be parsed and cannot be reviewed or enforced
   severity: low
   owasp_llm: LLM09
+
+# --- CE 1.5: dependency-to-capability correlation ---
+
+- id: ENV_DEP_INVENTORY
+  description: Referenced external configuration/credential names (inventory; informational)
+  severity: info
+  owasp_llm: LLM02
+
+- id: DEP_UNDECLARED_CAPABILITY
+  description: Referenced credential/config has no matching declared capability
+  severity: medium
+  owasp_llm: LLM02
+
+- id: DEP_ORPHANED_TOOL
+  description: Declared capability lacks a matching credential/config reference
+  severity: low
+  owasp_llm: LLM06
