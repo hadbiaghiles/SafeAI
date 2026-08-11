@@ -69,6 +69,7 @@ inputs:
 outputs:
   sarif-path:
     description: 'Absolute path to the generated SARIF file (empty if none).'
+    value: ${{ steps.safeai.outputs.sarif-path }}
 
 runs:
   using: 'composite'

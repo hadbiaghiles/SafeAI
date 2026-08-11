@@ -493,6 +493,23 @@ The `version` input is independent: it controls the SafeAI **PyPI** package
 installed into the runner, while the `uses:` ref controls which **action**
 release you run.
 
+**Recommended posture — pin both.** The `version` input defaults to the
+*latest stable* SafeAI release on PyPI (per the Marketplace design), but
+pinning it makes every scan reproducible and avoids surprising tool/action
+pairings. Set the `version` input to the exact release the action was
+validated against:
+
+```yaml
+- uses: ikaruscareer/SafeAI@v1.0.0
+  with:
+    version: "1.5.0"
+```
+
+If you rely on the default, know that SafeAI may upgrade underneath you on a
+future run; combined with `uses: @v1`, that is two moving parts. For
+maximum supply-chain control, pin the action to a commit SHA *and* set an
+explicit `version`.
+
 #### Troubleshooting
 
 - **`SafeAI requires Python 3.11+`** — the runner's default Python is too old

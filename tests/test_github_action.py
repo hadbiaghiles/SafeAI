@@ -86,6 +86,17 @@ def test_action_required_inputs_defaults(action):
     assert inputs["sarif"]["default"] == "safeai-results.sarif"
 
 
+def test_action_outputs_mapped_to_step_outputs(action):
+    """Composite action outputs must carry a ``value`` mapped to a step
+    output; without it consumers read an empty ``sarif-path``."""
+    outputs = action["outputs"]
+    assert "sarif-path" in outputs
+    assert "value" in outputs["sarif-path"]
+    assert outputs["sarif-path"]["value"] == "${{ steps.safeai.outputs.sarif-path }}"
+    step_ids = {step.get("id") for step in action["runs"]["steps"]}
+    assert "safeai" in step_ids
+
+
 def test_action_inputs_map_to_real_cli_flags():
     """Every exposed input either maps to a tested CLI option or is a
     documented install/scan control; no invented flags."""
@@ -187,6 +198,76 @@ def test_driver_rejects_missing_path(driver, tmp_path):
     proc = _run_driver(env)
     assert proc.returncode == 2
     assert "does not exist" in proc.stderr
+
+
+def test_driver_rejects_control_char_in_sarif(driver, tmp_path):
+    """A newline smuggled through a path input must not reach $GITHUB_OUTPUT;
+    it is an operational error (exit 2), not a scan outcome."""
+    env = {
+        "INPUT_PATH": os.path.join(FIXTURES, "clean"),
+        "INPUT_SARIF": "out.sarif\nEVIL=1",
+        "INPUT_FAIL_ON": "critical",
+    }
+    proc = _run_driver(env)
+    assert proc.returncode == 2
+    assert "control character" in proc.stderr
+
+
+def test_driver_rejects_control_char_in_path(driver, tmp_path):
+    env = {
+        "INPUT_PATH": os.path.join(FIXTURES, "cli\nent"),
+        "INPUT_SARIF": str(tmp_path / "r.sarif"),
+        "INPUT_FAIL_ON": "critical",
+    }
+    proc = _run_driver(env)
+    assert proc.returncode == 2
+    assert "control character" in proc.stderr
+
+
+def test_install_failure_is_operational_error(driver, tmp_path, monkeypatch):
+    """A failed pip install must exit 2 (operational error), never 1 (which
+    consumers treat as a policy/finding failure)."""
+
+    def fake_call(cmd, *args, **kwargs):
+        assert cmd[0] == sys.executable
+        assert "pip" in cmd
+        assert cmd[-1].startswith("SafeAI-Static-Analyzer==")
+        return 1  # pip failed
+
+    monkeypatch.setattr(driver.subprocess, "call", fake_call)
+    old_env = dict(os.environ)
+    os.environ["INPUT_PATH"] = os.path.join(FIXTURES, "clean")
+    os.environ["INPUT_VERSION"] = "1.5.0"
+    os.environ["INPUT_FAIL_ON"] = "critical"
+    os.environ["INPUT_SARIF"] = ""
+    os.environ.pop("SAFEAI_ACTION_SKIP_INSTALL", None)
+    try:
+        result = driver.main()
+    finally:
+        os.environ.clear()
+        os.environ.update(old_env)
+    assert result == 2
+
+
+def test_sarif_dir_create_failure_is_operational_error(driver, monkeypatch):
+    """If the SARIF parent directory cannot be created, exit 2, not 1."""
+
+    def fake_makedirs(path, exist_ok=True):
+        raise PermissionError("denied")
+
+    monkeypatch.setattr(driver.os, "makedirs", fake_makedirs)
+    old_env = dict(os.environ)
+    os.environ["INPUT_PATH"] = os.path.join(FIXTURES, "clean")
+    os.environ["INPUT_FAIL_ON"] = "critical"
+    os.environ["INPUT_SARIF"] = "/no/such/dir/out.sarif"
+    os.environ["SAFEAI_ACTION_SKIP_INSTALL"] = "true"
+    try:
+        result = driver.main()
+    finally:
+        os.environ.clear()
+        os.environ.update(old_env)
+    assert result == 2
+
 
 
 def test_clean_fixture_success(driver, tmp_path):

@@ -100,6 +100,15 @@ jobs:
           print(f"risky SARIF survives failure with {len(results)} findings")
           PY
 
+      - name: Assert sarif-path output is exposed to consumers
+        if: always()
+        run: |
+          test -n "${{ steps.clean.outputs.sarif-path }}" \
+            || { echo "::error::sarif-path output is empty (composite output mapping missing)"; exit 1; }
+          test -f "${{ steps.clean.outputs.sarif-path }}" \
+            || { echo "::error::sarif-path points to a missing file"; exit 1; }
+          echo "sarif-path output OK: ${{ steps.clean.outputs.sarif-path }}"
+
   suite:
     name: Existing SafeAI test suite
     runs-on: ubuntu-latest

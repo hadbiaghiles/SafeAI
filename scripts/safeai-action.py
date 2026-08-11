@@ -123,6 +123,22 @@ def resolve_path(value):
     return os.path.abspath(os.path.join(workspace_root(), value))
 
 
+def validate_no_control_chars(value, label):
+    """Return an error message if ``value`` contains control characters.
+
+    GitHub Actions parses ``$GITHUB_OUTPUT`` line-by-line; a newline smuggled
+    through a path input would inject additional output keys. The same applies
+    to ``::error::``/``::warning::`` messages, which are newline-delimited.
+    """
+    for char in value:
+        if ord(char) < 0x20 or char == "\x7f":
+            return (
+                f"{label} contains a control character "
+                f"(U+{ord(char):04X}), which is not allowed"
+            )
+    return None
+
+
 def write_outputs(sarif_path):
     """Append action outputs to ``$GITHUB_OUTPUT`` when present."""
     out_file = os.environ.get("GITHUB_OUTPUT")
@@ -148,6 +164,18 @@ def main(argv=None):
     sarif = resolve_path(sarif)
     rules = resolve_path(rules)
     baseline = resolve_path(baseline)
+
+    for label, value in (
+        ("path", scan_dir),
+        ("sarif", sarif),
+        ("rules", rules),
+        ("baseline", baseline),
+    ):
+        if value:
+            error = validate_no_control_chars(value, label)
+            if error:
+                print(f"::error::{error}", file=sys.stderr)
+                return 2
 
     if fail_on not in FAIL_ON_CHOICES:
         print(
@@ -187,12 +215,21 @@ def main(argv=None):
                 + f" (pip exit code {install_rc})",
                 file=sys.stderr,
             )
-            return install_rc
+            # Install failure is an operational error, not a scan/policy
+            # outcome, so it must not be conflated with exit code 1.
+            return 2
 
     if sarif:
         sarif_dir = os.path.dirname(os.path.abspath(sarif))
         if sarif_dir:
-            os.makedirs(sarif_dir, exist_ok=True)
+            try:
+                os.makedirs(sarif_dir, exist_ok=True)
+            except OSError as exc:
+                print(
+                    f"::error::could not create SARIF directory {sarif_dir!r}: {exc}",
+                    file=sys.stderr,
+                )
+                return 2
 
     cmd = build_scan_argv(
         scan_dir,
@@ -219,7 +256,14 @@ def main(argv=None):
         )
 
     if sarif and os.path.exists(sarif):
-        write_outputs(os.path.abspath(sarif))
+        try:
+            write_outputs(os.path.abspath(sarif))
+        except OSError as exc:
+            print(
+                f"::error::could not write action output to $GITHUB_OUTPUT: {exc}",
+                file=sys.stderr,
+            )
+            return 2
 
     return proc.returncode
 
