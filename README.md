@@ -61,7 +61,7 @@ SafeAI sits before runtime guardrails and red-teaming tools in the security life
 | **Baseline & Escalation Gating** | `--fail-on-new` for new/regressed findings, `--fail-on-escalation` for authority changes, `--pr-comment` PR summaries |
 | **Policy-as-Code & Suppressions** | `allow`/`warn`/`require_review`/`deny` policy with selectors; required-reason suppressions |
 | **Assurance Boundary** | Every scan states exactly what it did and could not verify — never a fixed disclaimer |
-| **CI/CD Integration** | SARIF 2.1.0 output, exit codes, GitHub Actions workflow included |
+| **CI/CD Integration** | SARIF 2.1.0 output, exit codes, GitHub Actions **Marketplace action** and workflow included |
 | **Multi-Format Reports** | Terminal, JSON, SARIF 2.1.0, HTML, canonical KYA manifest, PR comment |
 | **Cross-File Analysis** | Import graph, symbol resolution, and project graph |
 | **Confidence-Arbitrated Parsing** | Multiple parsers per file, merged with provenance |
@@ -359,9 +359,166 @@ Findings:
 
 ## CI/CD Integration
 
-### GitHub Actions
+### GitHub Actions — SafeAI Static Analysis
 
-A workflow is included at `.github/workflows/ci.yml`. To use in your project:
+[![SafeAI Static Analysis](https://img.shields.io/badge/Available%20on-GitHub%20Marketplace-2088FF?logo=github)](https://github.com/marketplace/actions/safeai-static-analysis)
+
+SafeAI ships a ready-to-use composite action for GitHub-hosted runners. The
+action is a thin, pure-Python driver: it installs the `SafeAI-Static-Analyzer`
+PyPI distribution into the runner's Python, runs `python -m safeai scan` on
+your repository, preserves the tool's native exit codes, and always writes a
+SARIF 2.1.0 artifact (even when the scan fails). It never evaluates any input
+through a shell, never executes your agent code, and makes no network calls
+beyond installing the PyPI package.
+
+Use it with `uses: ikaruscareer/SafeAI@<ref>` (see [Version pinning](#version-pinning)).
+
+```yaml
+name: safeai-scan
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  safeai-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Scan with SafeAI
+        id: safeai
+        uses: ikaruscareer/SafeAI@v1.0.0
+        with:
+          path: .
+          fail-on: critical
+
+      - name: Upload SARIF to GitHub Advanced Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.safeai.outputs.sarif-path }}
+```
+
+The `if: always()` on the upload step matters: SafeAI fails the job when a
+finding meets the `fail-on` threshold, but the SARIF file is still written so
+code-scanning alerts are still created. `permissions: contents: read` is the
+least privilege the action needs — it only reads your repository and writes
+reports inside the workspace.
+
+#### Inputs
+
+| Input | Default | Description |
+|-------|---------|-------------|
+| `path` | `.` | Directory or file to scan. Relative paths are resolved against `GITHUB_WORKSPACE`. |
+| `version` | *(latest stable)* | Exact SafeAI PyPI version to install (e.g. `1.5.0`). Empty installs the latest release of `SafeAI-Static-Analyzer`. |
+| `fail-on` | `critical` | Minimum severity that fails the job: `critical`, `high`, or `medium`. |
+| `sarif` | `safeai-results.sarif` | SARIF 2.1.0 output path, relative to the repo root. Empty string disables SARIF. |
+| `rules` | *(none)* | Path to a custom rules directory (`--rules`). |
+| `baseline` | *(none)* | Prior `safeai-manifest.json`/JSON report for new/regressed and escalation comparison (`--baseline`). |
+| `fail-on-new` | `false` | With `baseline`: fail only on NEW or REGRESSED findings at or above `fail-on` (`--fail-on-new`). |
+| `fail-on-escalation` | *(none)* | Minimum capability-escalation severity that fails the job: `critical`, `high`, or `medium`. Requires `baseline`. |
+| `no-registry` | `true` | Skip local KYA registry persistence (`--no-registry`), keeping scans ephemeral. |
+| `extra-args` | `[]` | Extra scan arguments as a JSON array of strings (e.g. `["--verbose"]`). Never shell-evaluated. |
+
+#### Outputs
+
+| Output | Description |
+|--------|-------------|
+| `sarif-path` | Absolute path to the written SARIF file (empty if SARIF was disabled or the scan did not produce one). |
+
+#### Exit behavior
+
+The action passes SafeAI's exit code through unchanged:
+
+| Code | Condition |
+|------|-----------|
+| 0 | No findings at or above `fail-on`; policy outcome not `deny`. |
+| 1 | Finding at or above threshold, new/regressed finding with `fail-on-new`, escalation with `fail-on-escalation`, or policy `deny`. |
+| 2 | Operational error — missing scan path, invalid input, or missing Python 3.11+. |
+
+Even on exit 1, the SARIF file (and any HTML/JSON reports you request via
+`extra-args`) are written so downstream steps can keep working. The action
+prints a GitHub `::warning::` if a scan failed without producing SARIF.
+
+#### More examples
+
+PR gating on new findings + escalation review:
+
+```yaml
+- name: Scan with SafeAI
+  uses: ikaruscareer/SafeAI@v1.0.0
+  with:
+    path: .
+    baseline: safeai-manifest.json
+    fail-on-new: 'true'
+    fail-on-escalation: high
+    sarif: safeai-results.sarif
+```
+
+Custom rules, verbose logs, and an HTML report (all argv-passed, no shell):
+
+```yaml
+- name: Scan with SafeAI
+  uses: ikaruscareer/SafeAI@v1.0.0
+  with:
+    path: ./agents
+    rules: .safeai/rules
+    extra-args: '["--verbose", "--html", "report.html"]'
+```
+
+#### Version pinning
+
+Exact versioning is required for Marketplace-verified actions. Pin to a
+release tag:
+
+```yaml
+uses: ikaruscareer/SafeAI@v1.0.0
+```
+
+and optionally relax to the major tag `@v1` for bugfix updates. For the
+strictest supply-chain posture, pin to a full commit SHA:
+
+```yaml
+uses: ikaruscareer/SafeAI@<40-char-commit-sha>
+```
+
+The `version` input is independent: it controls the SafeAI **PyPI** package
+installed into the runner, while the `uses:` ref controls which **action**
+release you run.
+
+#### Troubleshooting
+
+- **`SafeAI requires Python 3.11+`** — the runner's default Python is too old
+  or missing. Add `actions/setup-python@v5` with `python-version: '3.12'`
+  before this action.
+- **Scan fails but you expected it to pass** — lower the threshold or switch
+  to baseline-gated `fail-on-new`, which only fails on regressions.
+- **No SARIF uploaded despite `if: always()`** — confirm the `sarif` input is
+  non-empty and that `${{ steps.safeai.outputs.sarif-path }}` is referenced
+  with the same `id:` you set on the action step.
+- **Security scanners flag `${{ inputs.* }}` interpolation** — this is safe:
+  action inputs are passed to the driver as environment variables with
+  `env:`, and the driver hands them to the tool as an argv list. No input is
+  ever interpolated into `run:`.
+- **Registry warnings** — `no-registry: true` is the default precisely so
+  scans on shared runners stay ephemeral and never touch a shared
+  `~/.safeai/registry.db`.
+
+The action's own test workflow (`.github/workflows/action-test.yml`) runs the
+action against fixture repositories, builds and inspects the wheel, and
+validates SARIF output on every commit.
+
+### GitHub Actions (manual workflow)
+
+A self-scan workflow is also included at `.github/workflows/ci.yml`. To use
+SafeAI directly in your project:
 
 ```yaml
 jobs:
@@ -499,6 +656,11 @@ See [ROADMAP.md](./ROADMAP.md) for the detailed roadmap.
   + access modes), 14 capability escalation rules, capability diff v2,
   deep Claude Code analysis, PR comment + CI context, assurance boundary,
   registry schema v2, shared org-wide registry default.
+- **Completed in 1.5**: environment/credential dependency inventory and
+  dependency-to-capability correlation, first **stable** release
+  (`1.5.0`, classifier `5 - Production/Stable`), and a GitHub Actions
+  **Marketplace action** (`action.yml` composite action plus a validated
+  `scripts/safeai-action.py` driver and `action-test.yml` CI workflow).
 - **Next focus**: adapter depth improvements, governance signal detection,
   richer dataflow/context precision, and optional enterprise-scale workflows.
 

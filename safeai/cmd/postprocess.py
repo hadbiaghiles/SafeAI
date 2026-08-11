@@ -15,12 +15,18 @@ from safeai.engine.scan import run_scan
 
 
 def _safeai_version():
-    try:
-        from importlib.metadata import version
-        return version("safeai")
-    except Exception:
-        import safeai
-        return getattr(safeai, "__version__", "unknown")
+    # The PyPI distribution is named ``SafeAI-Static-Analyzer`` while the
+    # import package is ``safeai``; try both so the version resolves whether
+    # the project was installed from PyPI, from an editable checkout, or is
+    # being run straight from the source tree.
+    for dist_name in ("SafeAI-Static-Analyzer", "safeai"):
+        try:
+            from importlib.metadata import version
+            return version(dist_name)
+        except Exception:
+            continue
+    import safeai
+    return getattr(safeai, "__version__", "unknown")
 
 
 def _ruleset_version(rules):

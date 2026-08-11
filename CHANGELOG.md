@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.5.0] - unreleased
 
+### Added — GitHub Actions Marketplace action
+
+- **Composite action** (`action.yml` at the repository root): a ready-to-use
+  GitHub Actions action with inputs `path`, `version`, `fail-on`, `sarif`,
+  `rules`, `baseline`, `fail-on-new`, `fail-on-escalation`, `no-registry`,
+  and `extra-args`; a `sarif-path` output; and `shield`/`purple` branding.
+- **Pure-Python driver** (`scripts/safeai-action.py`): installs the
+  `SafeAI-Static-Analyzer` PyPI distribution into the runner's Python and
+  runs `python -m safeai scan`. All inputs arrive as `INPUT_*` environment
+  variables and are forwarded to the tool as an argv list — no shell
+  evaluation, no `eval`, no interpolation of user input into `run:`.
+- **Native exit-code passthrough** (0 = pass, 1 = policy/finding threshold hit,
+  2 = operational error), with the SARIF artifact written even on a failing
+  scan so downstream uploads keep working. The action prints `::warning::`
+  if a failed scan produced no SARIF.
+- **Least-privilege design**: the action only needs `contents: read` and runs
+  with the runner's default Python 3.11+ (`setup-python@v5` recommended);
+  `no-registry: true` is the default so scans stay ephemeral.
+- **Self-validating CI** (`.github/workflows/action-test.yml`): runs the
+  action itself (`uses: ./`) against clean and risky fixture repositories,
+  builds the wheel, installs it into a throwaway venv, and validates SARIF
+  2.1.0 output and failure behavior on every commit.
+- Local validation helpers: `scripts/run_local_integration.py` (build →
+  venv-install → scan → SARIF/exit-code check, with `PYTHONPATH` cleared so
+  only the installed package is used) and `scripts/check_wheel.py` (wheel
+  entry points, rules data, METADATA name). 24 new tests in
+  `tests/test_github_action.py` plus fixtures in `tests/fixtures/action/`.
+
 ### Added — Environment Dependency Inventory & Correlation (CE 1.5)
 
 - **Environment and credential dependency inventory**
@@ -57,6 +85,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The informational `ENV_DEP_INVENTORY` finding is counted in the severity
   breakdown and baseline; scans of repositories with a declared dependency
   inventory will report one more finding than v1.4 for the same input.
+
+### Changed — first stable release & packaging fixes
+
+- Version bumped to `1.5.0` and the `Development Status :: 4 - Beta`
+  classifier replaced with `5 - Production/Stable` (`pyproject.toml`).
+- `safeai.cmd.postprocess._safeai_version()` now resolves the installed
+  version through `importlib.metadata` using the `SafeAI-Static-Analyzer`
+  distribution name (with the previous `safeai` name as fallback).
+- `data_files`-free pure-Python wheel confirmed to package
+  `safeai/rules/base_rules.yaml` as package data; a wheel check script now
+  guards this in CI.
 
 ## [1.4.0-beta] - 2026-08-02
 

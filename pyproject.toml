@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "SafeAI-Static-Analyzer"
-version = "1.4.0b0"
+version = "1.5.0"
 description = "The lightweight, open-source Static AI Capability & Risk Analyzer for CI/CD pipelines."
 readme = "README.md"
 license = "Apache-2.0"
@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = ["ai-security", "static-analysis", "llm", "agents", "mcp", "sarif"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
@@ -48,6 +48,7 @@ safeai = "safeai.cmd.cli:main"
 
 [tool.ruff.lint]
 ignore = ["BLE001", "S110", "S112", "RUF012"]
+extend-per-file-ignores = { "tests/fixtures/action/**" = ["I001", "F841", "PLW1510", "T201"] }
 
 [tool.setuptools.packages.find]
 include = ["safeai*"]
