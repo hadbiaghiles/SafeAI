@@ -1,0 +1,111 @@
+name: 'SafeAI Static Analysis'
+description: >-
+  Static analysis of AI agent source code for capability exposure, security
+  risks, and hardcoded secrets. Fully offline, read-only, and emits SARIF
+  2.1.0. No network calls, credentials, external services, or uploads.
+author: 'IkarusCareer'
+branding:
+  icon: 'shield'
+  color: 'purple'
+
+inputs:
+  path:
+    description: 'Directory or file to scan.'
+    required: false
+    default: '.'
+  version:
+    description: >-
+      SafeAI PyPI version to install (for example "1.5.0"). Leave empty to
+      install the latest stable release of the PyPI distribution
+      SafeAI-Static-Analyzer.
+    required: false
+    default: ''
+  fail-on:
+    description: >-
+      Minimum severity that causes a non-zero exit code: critical, high, or
+      medium.
+    required: false
+    default: 'critical'
+  sarif:
+    description: >-
+      SARIF 2.1.0 output file path, relative to the repository root. Set to
+      an empty string to disable SARIF output.
+    required: false
+    default: 'safeai-results.sarif'
+  rules:
+    description: 'Path to a custom rules directory (maps to --rules).'
+    required: false
+    default: ''
+  baseline:
+    description: >-
+      Path to a prior safeai-manifest.json or JSON report used for
+      new/regressed and escalation comparison (maps to --baseline).
+    required: false
+    default: ''
+  fail-on-new:
+    description: >-
+      When true, with baseline: fail only on NEW or REGRESSED findings at or
+      above the fail-on severity (maps to --fail-on-new).
+    required: false
+    default: 'false'
+  fail-on-escalation:
+    description: >-
+      Minimum capability-escalation severity that fails the scan
+      (--fail-on-escalation): critical, high, or medium. Requires baseline.
+    required: false
+    default: ''
+  no-registry:
+    description: 'Do not create or update the local KYA registry (--no-registry).'
+    required: false
+    default: 'true'
+  extra-args:
+    description: >-
+      Additional SafeAI scan arguments as a JSON array of strings, for
+      example ["--verbose"]. Each value is passed to SafeAI as a literal
+      argv element - never evaluated by a shell.
+    required: false
+    default: '[]'
+
+outputs:
+  sarif-path:
+    description: 'Absolute path to the generated SARIF file (empty if none).'
+    value: ${{ steps.safeai.outputs.sarif-path }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: 'Check Python 3.11+'
+      shell: bash
+      run: |
+        set -euo pipefail
+        if command -v python3 >/dev/null 2>&1; then
+          SAFEAI_PY=python3
+        elif command -v python >/dev/null 2>&1; then
+          SAFEAI_PY=python
+        else
+          echo "::error::SafeAI requires Python 3.11+. Add actions/setup-python@v5 (python-version: 3.12) before this action." >&2
+          exit 2
+        fi
+        if ! "$SAFEAI_PY" -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)'; then
+          PYVER=$("$SAFEAI_PY" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+          echo "::error::SafeAI requires Python 3.11+ (found Python $PYVER)." >&2
+          exit 2
+        fi
+        echo "SAFEAI_PY=$SAFEAI_PY" >> "$GITHUB_ENV"
+
+    - name: 'Install and run SafeAI'
+      id: safeai
+      shell: bash
+      env:
+        INPUT_PATH: ${{ inputs.path }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_FAIL_ON: ${{ inputs.fail-on }}
+        INPUT_SARIF: ${{ inputs.sarif }}
+        INPUT_RULES: ${{ inputs.rules }}
+        INPUT_BASELINE: ${{ inputs.baseline }}
+        INPUT_FAIL_ON_NEW: ${{ inputs.fail-on-new }}
+        INPUT_FAIL_ON_ESCALATION: ${{ inputs.fail-on-escalation }}
+        INPUT_NO_REGISTRY: ${{ inputs.no-registry }}
+        INPUT_EXTRA_ARGS: ${{ inputs.extra-args }}
+      run: |-
+          "$SAFEAI_PY" "${{ github.action_path }}/scripts/safeai-action.py"

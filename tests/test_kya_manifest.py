@@ -3,6 +3,7 @@
 import json
 import os
 
+import safeai
 from safeai.cmd.cli import main
 from safeai.kya import MANIFEST_SCHEMA_VERSION, MANIFEST_TYPE
 from safeai.kya.manifest import build_manifest, serialize_manifest
@@ -112,7 +113,7 @@ def test_build_manifest_from_minimal_report():
         report,
         project={"project_id": "p1", "name": "demo", "source_root": ".", "repository": {}},
         scan_meta={"scan_id": "s1", "started_at": "t0", "completed_at": "t1"},
-        safeai_meta={"version": "1.3.0b0", "ruleset_version": "x", "config_hash": "h"},
+        safeai_meta={"version": safeai.__version__, "ruleset_version": "x", "config_hash": "h"},
         agents=[],
     )
     assert manifest["summary"]["agent_count"] == 0

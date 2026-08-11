@@ -1,5 +1,56 @@
 # SafeAI — Release Notes
 
+## v1.5.0 (2026-08-11)
+
+First **stable** release (`5 - Production/Stable`). In addition to the CE 1.5
+environment dependency inventory work, this release makes SafeAI consumable
+as a GitHub Actions **Marketplace action**.
+
+### Major Additions
+
+- **GitHub Actions Marketplace action** (`action.yml` composite action):
+  - Inputs: `path`, `version`, `fail-on`, `sarif`, `rules`, `baseline`,
+    `fail-on-new`, `fail-on-escalation`, `no-registry`, `extra-args`.
+  - Output: `sarif-path`.
+  - Installs `SafeAI-Static-Analyzer` from PyPI and runs `python -m safeai
+    scan` on the repository; native exit codes are preserved.
+  - Inputs are passed as environment variables to a pure-Python driver
+    (`scripts/safeai-action.py`) and forwarded as an argv list — nothing is
+    ever evaluated by a shell. Least-privilege (`contents: read` only).
+  - SARIF is written even when a scan fails, so `if: always()` upload steps
+    still produce code-scanning alerts. `no-registry: true` is the default to
+    keep scans ephemeral.
+- **Self-validating CI** (`.github/workflows/action-test.yml`): exercises the
+  action itself against fixture repositories, builds/installs the wheel, and
+  validates SARIF on every commit. 24 new tests in `tests/test_github_action.py`.
+- **Environment and credential dependency inventory** with
+  dependency-to-capability correlation (`DEP_UNDECLARED_CAPABILITY`,
+  `DEP_ORPHANED_TOOL`).
+
+### Fixed
+
+- Packaging: version → `1.5.0`, classifier → `5 - Production/Stable`;
+  `_safeai_version()` resolves through `SafeAI-Static-Analyzer` metadata;
+  wheel package-data verified (`safeai/rules/base_rules.yaml`).
+
+### Usage
+
+```yaml
+- uses: ikaruscareer/SafeAI@v1.0.0
+  with:
+    path: .
+    fail-on: critical
+```
+
+### Verification Snapshot
+
+- Full test suite passing (373 tests, 1 skip).
+- Lint passing (`ruff check safeai/ tests/ scripts/`).
+- Wheel and source distribution build successfully.
+- End-to-end published-style install validated (build → venv install → scan →
+  SARIF + exit-code checks) for both a clean fixture (exit 0) and a risky
+  fixture (exit 1, SARIF preserved).
+
 ## v1.3.0-beta (2026-07-31)
 
 Release 1.3 introduces **KYA (Know Your Agent)** baseline and local registry

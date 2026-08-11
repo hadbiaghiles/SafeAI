@@ -1,0 +1,135 @@
+name: GitHub Action tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  action:
+    name: Validate the SafeAI GitHub Action
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        run: pip install --require-hashes -r requirements-build.txt
+
+      - name: Build wheel
+        run: python -m build --wheel --outdir dist
+
+      - name: Verify wheel package data and metadata
+        run: |
+          WHEEL=$(find dist -name '*.whl' | head -n 1)
+          echo "$WHEEL"
+          python scripts/check_wheel.py "$WHEEL"
+
+      - name: Install the built SafeAI wheel (published-style install path)
+        run: pip install dist/*.whl
+
+      # The composite action installs SafeAI from PyPI by default; after the
+      # wheel above is installed, the exact-version install is satisfied by the
+      # local wheel, exercising the real install command without hitting PyPI.
+      - name: Run SafeAI action against a clean fixture
+        uses: ./
+        id: clean
+        with:
+          path: tests/fixtures/action/clean
+          version: "1.5.0"
+          fail-on: critical
+          sarif: clean.sarif
+
+      - name: Run SafeAI action against a deliberately risky fixture
+        uses: ./
+        id: risky
+        continue-on-error: true
+        with:
+          path: tests/fixtures/action/risky
+          version: "1.5.0"
+          fail-on: critical
+          sarif: risky.sarif
+
+      - name: Assert risky fixture failed as expected
+        if: always()
+        run: |
+          if [ "${{ steps.risky.outcome }}" != "failure" ]; then
+            echo "Expected the risky fixture to fail with a non-zero exit code."
+            exit 1
+          fi
+
+      - name: Validate SARIF artifacts
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          for name in ("clean.sarif", "risky.sarif"):
+              assert os.path.exists(name), f"missing {name}"
+              with open(name, encoding="utf-8") as fh:
+                  doc = json.load(fh)
+              assert doc["version"] == "2.1.0", f"{name} is not SARIF 2.1.0"
+              assert doc["runs"], f"{name} has no runs"
+              print(f"{name}: SARIF 2.1.0 OK ({len(doc['runs'][0].get('results', []))} results)")
+          PY
+
+      - name: Assert SARIF is preserved after policy failure
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          with open("risky.sarif", encoding="utf-8") as fh:
+              doc = json.load(fh)
+          results = doc["runs"][0].get("results", [])
+          rules = doc["runs"][0]["tool"]["driver"].get("rules", [])
+          ids = {r.get("id") for r in rules}
+          assert "CAP_subprocess_shell" in ids, ids
+          assert results, "expected findings in risky SARIF"
+          print(f"risky SARIF survives failure with {len(results)} findings")
+          PY
+
+      - name: Assert sarif-path output is exposed to consumers
+        if: always()
+        run: |
+          test -n "${{ steps.clean.outputs.sarif-path }}" \
+            || { echo "::error::sarif-path output is empty (composite output mapping missing)"; exit 1; }
+          test -f "${{ steps.clean.outputs.sarif-path }}" \
+            || { echo "::error::sarif-path points to a missing file"; exit 1; }
+          echo "sarif-path output OK: ${{ steps.clean.outputs.sarif-path }}"
+
+  suite:
+    name: Existing SafeAI test suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install --require-hashes -r requirements-dev.txt
+
+      - name: Ruff
+        run: ruff check safeai/ tests/ scripts/
+
+      - name: Test
+        run: python -m pytest tests/ -v --tb=short
