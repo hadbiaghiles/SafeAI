@@ -12,6 +12,14 @@
 
 ---
 
+Know Your Agent (KYA)
+
+SafeAI now turns static scan results into a private, historical inventory of AI agents and their findings.
+
+<img width="1024" height="1024" alt="SafeAI_Know_Your_Agent" src="https://github.com/user-attachments/assets/47923b8d-f7c3-44c7-8890-ddb82d04838d" />
+
+---
+
 ## Why SafeAI?
 
 Traditional application security tools (SAST, SCA, IaC scanning) are not designed for AI agent systems. AI applications introduce new risk surfaces:
@@ -494,7 +502,8 @@ See [ROADMAP.md](./ROADMAP.md) for the detailed roadmap.
 - **Next focus**: adapter depth improvements, governance signal detection,
   richer dataflow/context precision, and optional enterprise-scale workflows.
 
-<img width="1024" height="1024" alt="SafeAI_Roadmap" src="https://github.com/user-attachments/assets/2cdd1a8a-b4ae-4e1f-8f85-0108fdeb3194" />
+<img width="1024" height="1024" alt="SafeAI_Roadmap" src="https://github.com/user-attachments/assets/de21b305-9e17-4390-a745-e00f9427f8e4" />
+
 
 ---
 
