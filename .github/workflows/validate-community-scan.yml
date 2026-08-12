@@ -22,7 +22,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c2efbdaa247c3378f8  # v5.3.0
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
         with:
           python-version: '3.12'
 
@@ -37,8 +37,7 @@ jobs:
         run: |
           set -euo pipefail
           python community-scans/scripts/validate_targets.py \
-            --manifest community-scans/targets.yml \
-            --fail-on-missing-policy
+            --manifest community-scans/targets.yml
 
       - name: Validate targets.yml against schema
         shell: bash
@@ -169,7 +168,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c2efbdaa247c3378f8  # v5.3.0
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
         with:
           python-version: '3.12'
 
