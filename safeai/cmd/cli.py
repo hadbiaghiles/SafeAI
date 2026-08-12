@@ -69,6 +69,22 @@ def _build_parser():
                       help="Policy-as-code YAML file (default: <scan-root>/.safeai/policy.yml if present)")
     scan.add_argument("--suppressions",
                       help="Suppressions YAML file (default: <scan-root>/.safeai/suppressions.yml if present)")
+    # --- SafeAI Security Scorecard ---
+    scan.add_argument("--scorecard", dest="scorecard_path",
+                      help="Write the SafeAI Security Scorecard Markdown report to PATH")
+    scan.add_argument("--scorecard-json", dest="scorecard_json_path",
+                      help="Write the SafeAI Security Scorecard JSON report to PATH")
+    scan.add_argument("--scorecard-md", dest="scorecard_md_path",
+                      help="Write the SafeAI Security Scorecard Markdown report to PATH")
+    scan.add_argument("--scorecard-summary", dest="scorecard_summary_path",
+                      help="Append the SafeAI Security Scorecard to the GitHub Actions "
+                           "job summary at PATH (or $GITHUB_STEP_SUMMARY when no PATH "
+                           "is given); outside GitHub Actions this is a no-op")
+    scan.add_argument("--scorecard-fail-under", dest="scorecard_fail_under",
+                      type=float, metavar="SCORE",
+                      help="Fail the scan when the overall score is below SCORE "
+                           "(0-10). This is an additional score-based gate and does "
+                           "not change --fail-on/--fail-on-new/--fail-on-escalation.")
 
     registry = sub.add_parser("registry", help="Inspect the local KYA registry")
     reg_sub = registry.add_subparsers(dest="registry_command")

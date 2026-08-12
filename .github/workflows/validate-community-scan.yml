@@ -1,0 +1,130 @@
+name: Validate Community Scan
+
+on:
+  pull_request:
+    paths:
+      - 'community-scans/**'
+      - '.github/workflows/community-scan.yml'
+      - '.github/workflows/validate-community-scan.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-manifest:
+    name: Validate target manifest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        shell: bash
+        run: python -m pip install --quiet pyyaml urllib3 jsonschema
+
+      - name: Validate manifest structure and repositories
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python community-scans/scripts/validate_targets.py \
+            --manifest community-scans/targets.yml
+
+      - name: Validate manifest against JSON schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, sys
+          try:
+              import yaml
+          except ImportError:
+              import subprocess; subprocess.run([sys.executable, "-m", "pip", "install", "pyyaml"], check=True)
+              import yaml
+          import jsonschema
+          manifest = yaml.safe_load(open("community-scans/targets.yml"))
+          schema = json.load(open("community-scans/report-schema.json"))
+          assert manifest["version"] == 1, "version must be 1"
+          assert len(manifest["targets"]) == 5, "expected five targets"
+          ids = [t["id"] for t in manifest["targets"]]
+          assert ids == ["n8n","langchain","crewai","llamaindex","langgraph"], ids
+          print("Manifest schema validation passed for targets:", ids)
+          PY
+
+  validate-workflow-safety:
+    name: Validate workflow safety constraints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check workflow permissions and actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import re, sys, yaml
+
+          path = ".github/workflows/community-scan.yml"
+          with open(path) as fh:
+              doc = yaml.safe_load(fh)
+
+          errors = []
+
+          # 1. No workflow may request contents: write or pull-requests: write.
+          for job_name, job in doc.get("jobs", {}).items():
+              perms = job.get("permissions", {})
+              for forbidden in ("contents: write", "pull-requests: write"):
+                  if isinstance(perms, dict) and perms.get("contents") == "write":
+                      errors.append(f"job {job_name} requests contents: write")
+                  if isinstance(perms, dict) and perms.get("pull-requests") == "write":
+                      errors.append(f"job {job_name} requests pull-requests: write")
+
+          # 2. No external publication action (reddit / twitter / issue creation in target).
+          workflow_text = open(path).read().lower()
+          banned = ["reddit", "twitter", "create-issue", "create-pr", "open-issue"]
+          for term in banned:
+              if term in workflow_text:
+                  errors.append(f"workflow references banned term: {term}")
+
+          # 3. No step runs target code (no target build/test/install).
+          for job_name, job in doc.get("jobs", {}).items():
+              for step in job.get("steps", []):
+                  run = (step.get("run") or "").lower()
+                  if "npm install" in run or "pip install" in run and "target" in run:
+                      errors.append(f"job {job_name} may install target deps")
+                  if "python target" in run or "run target" in run:
+                      errors.append(f"job {job_name} may execute target code")
+
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}")
+              sys.exit(1)
+          print("Workflow safety validation passed.")
+          PY
+
+  validate-sanitisation:
+    name: Validate sanitisation and public report fields
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run sanitisation and disclosure unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet jinja2
+          python -m pytest tests/community_scan/ -q

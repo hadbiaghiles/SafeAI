@@ -64,7 +64,9 @@ def build_install_command(version):
 
 
 def build_scan_argv(path, fail_on, sarif, rules="", baseline="", fail_on_new=False,
-                    fail_on_escalation="", no_registry=True, extra_args=None):
+                    fail_on_escalation="", no_registry=True, extra_args=None,
+                    scorecard="", scorecard_json="", scorecard_summary="",
+                    scorecard_fail_under=""):
     """Build the ``python -m safeai scan`` argv as a list (no shell)."""
     argv = [sys.executable, "-m", "safeai", "scan", path]
     if sarif:
@@ -80,6 +82,14 @@ def build_scan_argv(path, fail_on, sarif, rules="", baseline="", fail_on_new=Fal
         argv += ["--fail-on-escalation", fail_on_escalation]
     if no_registry:
         argv += ["--no-registry"]
+    if scorecard:
+        argv += ["--scorecard", scorecard]
+    if scorecard_json:
+        argv += ["--scorecard-json", scorecard_json]
+    if scorecard_summary:
+        argv += ["--scorecard-summary", scorecard_summary]
+    if scorecard_fail_under:
+        argv += ["--scorecard-fail-under", scorecard_fail_under]
     if extra_args:
         argv += list(extra_args)
     return argv
@@ -139,13 +149,17 @@ def validate_no_control_chars(value, label):
     return None
 
 
-def write_outputs(sarif_path):
+def write_outputs(sarif_path, scorecard_path=""):
     """Append action outputs to ``$GITHUB_OUTPUT`` when present."""
     out_file = os.environ.get("GITHUB_OUTPUT")
-    if not out_file or not os.path.isabs(sarif_path):
+    if not out_file:
         return
-    with open(out_file, "a", encoding="utf-8") as fh:
-        fh.write(f"sarif-path={sarif_path}\n")
+    if sarif_path and os.path.isabs(sarif_path):
+        with open(out_file, "a", encoding="utf-8") as fh:
+            fh.write(f"sarif-path={sarif_path}\n")
+    if scorecard_path and os.path.isabs(scorecard_path):
+        with open(out_file, "a", encoding="utf-8") as fh:
+            fh.write(f"scorecard-path={scorecard_path}\n")
 
 
 def main(argv=None):
@@ -159,17 +173,31 @@ def main(argv=None):
     fail_on_escalation = action_input("fail-on-escalation")
     no_registry = as_bool(action_input("no-registry", "true"))
     skip_install = as_bool(env_val("SAFEAI_ACTION_SKIP_INSTALL"))
+    scorecard = action_input("scorecard", "safeai-scorecard.md")
+    scorecard_json = action_input("scorecard-json", "safeai-scorecard.json")
+    scorecard_summary = action_input("scorecard-summary", "true")
+    scorecard_fail_under = action_input("scorecard-fail-under")
 
     scan_dir = resolve_path(scan_dir)
     sarif = resolve_path(sarif)
     rules = resolve_path(rules)
     baseline = resolve_path(baseline)
+    scorecard = resolve_path(scorecard)
+    scorecard_json = resolve_path(scorecard_json)
+    scorecard_summary_path = ""
+    if as_bool(scorecard_summary):
+        summary_env = env_val("GITHUB_STEP_SUMMARY")
+        if summary_env:
+            scorecard_summary_path = summary_env
 
     for label, value in (
         ("path", scan_dir),
         ("sarif", sarif),
         ("rules", rules),
         ("baseline", baseline),
+        ("scorecard", scorecard),
+        ("scorecard-json", scorecard_json),
+        ("scorecard-summary", scorecard_summary_path),
     ):
         if value:
             error = validate_no_control_chars(value, label)
@@ -194,6 +222,22 @@ def main(argv=None):
     if version_error:
         print(f"::error::{version_error}", file=sys.stderr)
         return 2
+
+    if scorecard_fail_under:
+        try:
+            fail_under = float(scorecard_fail_under)
+        except ValueError:
+            print(
+                f"::error::scorecard-fail-under must be numeric; got {scorecard_fail_under!r}",
+                file=sys.stderr,
+            )
+            return 2
+        if not (0.0 <= fail_under <= 10.0):
+            print(
+                f"::error::scorecard-fail-under must be between 0 and 10; got {fail_under}",
+                file=sys.stderr,
+            )
+            return 2
 
     try:
         extra_args = parse_extra_args(action_input("extra-args", "[]"))
@@ -241,6 +285,10 @@ def main(argv=None):
         fail_on_escalation=fail_on_escalation,
         no_registry=no_registry,
         extra_args=extra_args,
+        scorecard=scorecard,
+        scorecard_json=scorecard_json,
+        scorecard_summary=scorecard_summary_path,
+        scorecard_fail_under=scorecard_fail_under,
     )
     # Run from a neutral working directory so ``python -m safeai`` imports the
     # installed PyPI package, never a ``safeai/`` directory in the consumer's
@@ -261,6 +309,20 @@ def main(argv=None):
         except OSError as exc:
             print(
                 f"::error::could not write action output to $GITHUB_OUTPUT: {exc}",
+                file=sys.stderr,
+            )
+            return 2
+
+    # Write the scorecard-path output when the scorecard was generated.
+    # The scorecard path is preserved even when the scan fails, so a later
+    # step with ``if: always()`` can still read it.
+    scorecard_path = os.path.abspath(scorecard) if scorecard else ""
+    if scorecard_path and os.path.exists(scorecard_path):
+        try:
+            write_outputs("", scorecard_path=scorecard_path)
+        except OSError as exc:
+            print(
+                f"::error::could not write scorecard-path output to $GITHUB_OUTPUT: {exc}",
                 file=sys.stderr,
             )
             return 2

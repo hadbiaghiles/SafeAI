@@ -1,0 +1,203 @@
+name: SafeAI Community Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target ID to scan, or "all"'
+        required: false
+        default: 'all'
+      ref:
+        description: 'Optional target ref, tag, or commit SHA'
+        required: false
+        default: ''
+      publish_mode:
+        description: 'Report mode'
+        required: true
+        type: choice
+        options:
+          - private
+          - review
+        default: private
+  schedule:
+    - cron: '0 3 * * 6'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  resolve-targets:
+    name: Resolve scan targets
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Checkout SafeAI
+        uses: actions/checkout@v4
+
+      - name: Compute target matrix
+        id: matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          ALL=("n8n" "langchain" "crewai" "llamaindex" "langgraph")
+          SELECTED="${{ github.event.inputs.target }}"
+          if [[ -z "${SELECTED:-}" || "${SELECTED}" == "all" ]]; then
+            OUT=$(printf '%s\n' "${ALL[@]}" | jq -R . | jq -cs .)
+          else
+            OUT=$(echo "\"${SELECTED}\"" | jq -cs .)
+          fi
+          echo "matrix=${OUT}" >> "$GITHUB_OUTPUT"
+
+  scan:
+    name: Scan ${{ matrix.target }}
+    needs: resolve-targets
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.resolve-targets.outputs.matrix) }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout SafeAI
+        uses: actions/checkout@v4
+
+      - name: Resolve target metadata
+        id: meta
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet pyyaml urllib3
+          python community-scans/scripts/validate_targets.py \
+            --manifest community-scans/targets.yml \
+            --write-resolved /tmp/resolved.json
+          SHA=$(python -c "import json; print(json.load(open('/tmp/resolved.json'))['targets']['${{ matrix.target }}']['resolved_commit_sha'])")
+          REF="${{ github.event.inputs.ref }}"
+          if [[ -z "${REF}" ]]; then
+            REF="${SHA}"
+          fi
+          echo "commit_sha=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "ref=${REF}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout target (read-only, pinned SHA)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ fromJson('{"n8n":"n8n-io/n8n","langchain":"langchain-ai/langchain","crewai":"crewAIInc/crewAI","llamaindex":"run-llama/llama_index","langgraph":"langchain-ai/langgraph"}')[matrix.target] }}
+          ref: ${{ steps.meta.outputs.ref }}
+          path: target-src
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install SafeAI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet -e .
+
+      - name: Run SafeAI
+        id: safeai
+        continue-on-error: true
+        uses: ikaruscareer/SafeAI@v1
+        with:
+          path: target-src
+          fail-on: critical
+          sarif: reports/raw/${{ matrix.target }}.sarif
+          scorecard: reports/raw/${{ matrix.target }}.md
+          scorecard-json: reports/raw/${{ matrix.target }}.json
+          scorecard-summary: "true"
+          no-registry: true
+
+      - name: Build provenance manifest
+        if: always()
+        shell: bash
+        env:
+          SAFEAI_VERSION: ${{ steps.safeai.outputs.safeai-version || 'unknown' }}
+        run: |
+          set -euo pipefail
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          python community-scans/scripts/build_scan_manifest.py \
+            --target-id "${{ matrix.target }}" \
+            --repository "${{ fromJson('{"n8n":"n8n-io/n8n","langchain":"langchain-ai/langchain","crewai":"crewAIInc/crewAI","llamaindex":"run-llama/llama_index","langgraph":"langchain-ai/langgraph"}')[matrix.target] }}" \
+            --upstream-url "https://github.com/${{ fromJson('{"n8n":"n8n-io/n8n","langchain":"langchain-ai/langchain","crewai":"crewAIInc/crewAI","llamaindex":"run-llama/llama_index","langgraph":"langchain-ai/langgraph"}')[matrix.target] }}" \
+            --requested-ref "${{ github.event.inputs.ref || 'default' }}" \
+            --resolved-commit-sha "${{ steps.meta.outputs.commit_sha }}" \
+            --safeai-version "${SAFEAI_VERSION}" \
+            --safeai-action-ref "ikaruscareer/SafeAI@v1" \
+            --scan-timestamp-utc "${TIMESTAMP}" \
+            --fail-on critical \
+            --github-run-id "${{ github.run_id }}" \
+            --disclosure-status "${{ github.event.inputs.publish_mode || 'private' }}" \
+            --out "reports/manifests/${{ matrix.target }}.json"
+
+      - name: Sanitise report
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet jinja2
+          python community-scans/scripts/sanitise_report.py \
+            --report "reports/raw/${{ matrix.target }}.json" \
+            --out "reports/public/${{ matrix.target }}-summary.json"
+
+      - name: Render Reddit and maintainer drafts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python community-scans/scripts/render_reddit_draft.py \
+            --summary "reports/public/${{ matrix.target }}-summary.json" \
+            --template-dir community-scans/templates \
+            --reddit-out "reports/public/${{ matrix.target }}-reddit-draft.md" \
+            --public-out "reports/public/${{ matrix.target }}-public-summary.md" \
+            --maintainer-out "reports/private/${{ matrix.target }}-maintainer-notification.md"
+
+      - name: Upload private artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safeai-community-${{ matrix.target }}
+          path: |
+            reports/raw/${{ matrix.target }}.sarif
+            reports/raw/${{ matrix.target }}.json
+            reports/raw/${{ matrix.target }}.md
+            reports/manifests/${{ matrix.target }}.json
+            reports/private/${{ matrix.target }}-maintainer-notification.md
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload public review artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safeai-community-${{ matrix.target }}-public
+          path: |
+            reports/public/${{ matrix.target }}-reddit-draft.md
+            reports/public/${{ matrix.target }}-public-summary.md
+            reports/public/${{ matrix.target }}-summary.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  summarise:
+    name: Summarise community scans
+    needs: scan
+    runs-on: ubuntu-latest
+    if: always()
+    permissions:
+      contents: read
+    steps:
+      - name: Report completion
+        shell: bash
+        run: |
+          echo "Community scan matrix completed. Individual artifacts are uploaded per-target."
+          echo "No public report was published. Reddit drafts are available for human review only."

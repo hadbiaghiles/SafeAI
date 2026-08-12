@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SafeAI Community Scan Report Schema",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "target_id",
+    "repository",
+    "upstream_url",
+    "requested_ref",
+    "resolved_commit_sha",
+    "scan_timestamp_utc",
+    "safeai_version",
+    "safeai_action_ref",
+    "configuration",
+    "execution",
+    "disclosure_status"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "enum": [1] },
+    "target_id": { "type": "string", "minLength": 1 },
+    "repository": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+    "upstream_url": { "type": "string", "format": "uri" },
+    "requested_ref": { "type": "string" },
+    "resolved_commit_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "scan_timestamp_utc": { "type": "string", "format": "date-time" },
+    "safeai_version": { "type": "string" },
+    "safeai_action_ref": { "type": "string" },
+    "safeai_action_commit": { "type": "string", "pattern": "^([0-9a-f]{40})?$" },
+    "rule_set_version": { "type": "string" },
+    "configuration": {
+      "type": "object",
+      "required": ["fail_on", "no_registry"],
+      "properties": {
+        "fail_on": { "type": "string", "enum": ["critical", "high", "medium"] },
+        "no_registry": { "type": "boolean" }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "required": ["github_run_id", "runner_os", "python_version"],
+      "properties": {
+        "github_run_id": { "type": "string" },
+        "runner_os": { "type": "string" },
+        "python_version": { "type": "string" }
+      }
+    },
+    "disclosure_status": { "type": "string", "enum": ["private", "review", "public"] }
+  }
+}

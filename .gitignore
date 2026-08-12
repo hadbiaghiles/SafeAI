@@ -26,6 +26,9 @@ safeai_reports/
 sample-agents/
 report.sarif
 safeai-manifest.json
+safeai-scorecard.json
+safeai-scorecard.md
+community-scans/reports/
 
 # KYA local registry (private, machine-local state)
 .safeai/registry.db

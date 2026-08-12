@@ -1,8 +1,6 @@
 name: 'SafeAI Static Analysis'
 description: >-
-  Static analysis of AI agent source code for capability exposure, security
-  risks, and hardcoded secrets. Fully offline, read-only, and emits SARIF
-  2.1.0. No network calls, credentials, external services, or uploads.
+  Scan AI-agent code for capabilities, risks, and policy violations.
 author: 'IkarusCareer'
 branding:
   icon: 'shield'
@@ -65,11 +63,30 @@ inputs:
       argv element - never evaluated by a shell.
     required: false
     default: '[]'
+  scorecard:
+    description: 'Path for the SafeAI Markdown scorecard.'
+    required: false
+    default: 'safeai-scorecard.md'
+  scorecard-json:
+    description: 'Path for the SafeAI JSON scorecard.'
+    required: false
+    default: 'safeai-scorecard.json'
+  scorecard-summary:
+    description: 'Write the scorecard to the GitHub Actions job summary.'
+    required: false
+    default: 'true'
+  scorecard-fail-under:
+    description: 'Minimum score required for a successful workflow.'
+    required: false
+    default: ''
 
 outputs:
   sarif-path:
     description: 'Absolute path to the generated SARIF file (empty if none).'
     value: ${{ steps.safeai.outputs.sarif-path }}
+  scorecard-path:
+    description: 'Absolute path to the generated Markdown scorecard (empty if none).'
+    value: ${{ steps.safeai.outputs.scorecard-path }}
 
 runs:
   using: 'composite'
@@ -107,5 +124,9 @@ runs:
         INPUT_FAIL_ON_ESCALATION: ${{ inputs.fail-on-escalation }}
         INPUT_NO_REGISTRY: ${{ inputs.no-registry }}
         INPUT_EXTRA_ARGS: ${{ inputs.extra-args }}
+        INPUT_SCORECARD: ${{ inputs.scorecard }}
+        INPUT_SCORECARD_JSON: ${{ inputs.scorecard-json }}
+        INPUT_SCORECARD_SUMMARY: ${{ inputs.scorecard-summary }}
+        INPUT_SCORECARD_FAIL_UNDER: ${{ inputs.scorecard-fail-under }}
       run: |-
           "$SAFEAI_PY" "${{ github.action_path }}/scripts/safeai-action.py"

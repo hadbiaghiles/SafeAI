@@ -1,0 +1,37 @@
+# SafeAI Community Scan: {{ display_name }}
+
+## Scope
+
+- Repository: {{ upstream_url }}
+- Commit: `{{ resolved_commit_sha }}`
+- Scan date: {{ scan_timestamp_utc }}
+- SafeAI version: {{ safeai_version }}
+- Scan type: read-only static analysis
+- No runtime execution or penetration testing was performed.
+
+## Results
+
+- SafeAI score: {{ safeai_score }}/10
+- Status: {{ status }}
+- Findings requiring review: {{ review_count }}
+- High-confidence concerns: {{ high_confidence_count }}
+- Potentially sensitive findings withheld: {{ sensitive_count }}
+
+## Main themes
+
+{% for theme in main_themes %}
+- {{ theme }}
+{% endfor %}
+
+## Limitations
+
+SafeAI performs static analysis. Results require maintainer validation and do not constitute a complete security audit or proof of exploitability.
+
+## Disclosure
+
+- Maintainer notification status: {{ disclosure_status }}
+- Security policy: {{ security_policy_url }}
+
+## Methodology
+
+https://github.com/ikaruscareer/SafeAI/blob/main/community-scans/methodology.md

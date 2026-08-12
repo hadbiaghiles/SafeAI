@@ -71,6 +71,7 @@ class ScanPostProcessor:
         self.project_meta = {}
         self.scan_meta = {}
         self.manifest = {}
+        self.scorecard = None
         self.registry_status = {"state": "skipped", "path": None, "reason": None, "stats": None}
 
     def run(self):
@@ -123,6 +124,9 @@ class ScanPostProcessor:
             self.args.html_path,
             self.args.sarif,
             self.args.pr_comment_path,
+            self.args.scorecard_path,
+            self.args.scorecard_json_path,
+            self.args.scorecard_md_path,
         ]
         self.report = run_scan(
             self.args.directory,
@@ -318,6 +322,47 @@ class ScanPostProcessor:
             if self.args.pr_comment_stdout:
                 sys.stdout.write(comment)
 
+        # --- SafeAI Security Scorecard ---
+        scorecard_requested = any([
+            self.args.scorecard_path,
+            self.args.scorecard_json_path,
+            self.args.scorecard_md_path,
+            self.args.scorecard_summary_path,
+            self.args.scorecard_fail_under is not None,
+        ])
+        if scorecard_requested:
+            from safeai.scorecard import (
+                build_scorecard,
+                write_scorecard_json,
+                write_scorecard_md,
+                write_scorecard_summary,
+            )
+            self.scorecard = build_scorecard(
+                self.report,
+                self.scan_meta,
+                self.policy_decision,
+                scan_args={
+                    "directory": self.args.directory,
+                    "fail_on": self.args.fail_on,
+                    "fail_on_new": self.args.fail_on_new,
+                    "fail_on_escalation": self.args.fail_on_escalation,
+                    "scorecard_fail_under": self.args.scorecard_fail_under,
+                },
+            )
+            # --scorecard PATH: Markdown report (the canonical scorecard path).
+            # --scorecard-md PATH: explicit Markdown alias.
+            # --scorecard-json PATH: JSON report.
+            # --scorecard-summary PATH: GitHub Actions job summary.
+            if self.args.scorecard_path:
+                write_scorecard_md(self.scorecard, self.args.scorecard_path)
+            if self.args.scorecard_md_path:
+                write_scorecard_md(self.scorecard, self.args.scorecard_md_path)
+            if self.args.scorecard_json_path:
+                write_scorecard_json(self.scorecard, self.args.scorecard_json_path)
+            if self.args.scorecard_summary_path is not None:
+                summary_path = self.args.scorecard_summary_path or None
+                write_scorecard_summary(self.scorecard, path=summary_path)
+
         from safeai.report.terminal import print_summary
         print_summary(self.report)
 
@@ -352,6 +397,24 @@ class ScanPostProcessor:
                 self.parser.error("--fail-on-escalation requires --baseline")
             highest = (self.report.get("capability_diff") or {}).get("highest_escalation")
             if highest in LEVELS and LEVELS.index(highest) >= LEVELS.index(self.args.fail_on_escalation):
+                fail = True
+
+        # --scorecard-fail-under is an additional score-based gate. It never
+        # relaxes the existing thresholds, only adds to them. The score is
+        # not changed by this gate; only the exit code is affected.
+        scorecard_fail_under = self.args.scorecard_fail_under
+        if scorecard_fail_under is not None:
+            # Validate: numeric and in [0, 10]. The scorecard was built in
+            # _write_outputs, so it exists when this gate is requested.
+            if self.scorecard is None:
+                # Should not happen, but fail safely as operational error.
+                self.parser.error("--scorecard-fail-under requires a scorecard output")
+            if not (0.0 <= scorecard_fail_under <= 10.0):
+                self.parser.error(
+                    f"--scorecard-fail-under must be between 0 and 10; got {scorecard_fail_under}"
+                )
+            score = self.scorecard["safeai_security_scorecard"]["summary"]["score"]
+            if score < scorecard_fail_under:
                 fail = True
 
         return 1 if fail else 0
