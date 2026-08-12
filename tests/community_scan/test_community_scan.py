@@ -140,6 +140,36 @@ def test_security_policy_validation_rejects_non_github():
     assert ok2 is False
 
 
+def test_resolve_repository_detects_public(monkeypatch):
+    import validate_targets
+
+    captured = {}
+
+    def fake_http(url, token=None, timeout=20):
+        captured["url"] = url
+        captured["token"] = token
+        return {"full_name": "n8n-io/n8n", "private": False, "default_branch": "master"}
+
+    monkeypatch.setattr(validate_targets, "_http_json", fake_http)
+    data = validate_targets.resolve_repository("n8n-io/n8n", "tok")
+    assert data["private"] is False
+    assert captured["url"].endswith("/repos/n8n-io/n8n")
+
+
+def test_resolve_repository_rejects_private(monkeypatch):
+    import validate_targets
+
+    def fake_http(url, token=None, timeout=20):
+        return {"full_name": "acme/secret", "private": True}
+
+    monkeypatch.setattr(validate_targets, "_http_json", fake_http)
+    try:
+        validate_targets.resolve_repository("acme/secret", None)
+        assert False, "expected ValueError for private repo"
+    except ValueError as exc:
+        assert "not public" in str(exc)
+
+
 
 def test_target_name_special_characters():
     manifest = build_manifest(

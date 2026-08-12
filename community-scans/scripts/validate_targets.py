@@ -74,7 +74,10 @@ def validate_yaml_structure(data: Any) -> list[str]:
 def resolve_repository(repo: str, token: str | None) -> dict[str, Any]:
     """Return basic repository metadata for a public repo."""
     data = _http_json(f"https://api.github.com/repos/{repo}", token)
-    if not data.get("public"):
+    # The GitHub REST API exposes visibility via the ``private`` boolean (and,
+    # on newer payloads, a ``visibility`` string). There is no top-level
+    # ``public`` field, so check ``private`` instead.
+    if data.get("private"):
         raise ValueError(f"repository is not public: {repo}")
     return data
 
