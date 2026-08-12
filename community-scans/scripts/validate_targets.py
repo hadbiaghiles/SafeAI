@@ -15,8 +15,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from typing import Any
+from urllib.parse import urlparse
 
 try:
     import yaml
@@ -88,15 +90,49 @@ def resolve_commit_sha(repo: str, ref: str, token: str | None) -> str:
         raise ValueError(f"could not resolve ref '{ref}' for {repo}: {exc}") from exc
 
 
-def validate_security_policy(url: str, token: str | None) -> bool:
+def validate_security_policy(url: str, token: str | None) -> tuple[bool, int]:
+    """Check the declared security-policy URL is reachable and GitHub-hosted.
+
+    Returns ``(ok, http_status)``. ``ok`` is False when the URL is missing,
+    unreachable, or redirects off GitHub-owned hosts. The caller decides
+    whether a missing policy is fatal.
+    """
     if not url:
-        return True
+        return (False, 0)
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or parsed.hostname not in {
+        "github.com",
+        "security.advisories.githubusercontent.com",
+    }:
+        # We only validate GitHub-hosted security policy pages.
+        return (False, 0)
     try:
-        _http_json(url.replace("github.com", "api.github.com/repos").replace("/security/policy", "/security/advisories"), token)
-        return True
+        # Public policy pages are fetched anonymously; never attach the token
+        # to a non-API HTML request.
+        headers = {"Accept": "text/html,application/json", "User-Agent": "safeai-community-scan"}
+        req = urllib.request.Request(url, headers=headers, method="GET")
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            final_url = resp.geturl()
+            final_host = urlparse(final_url).hostname
+            if final_host not in {
+                "github.com",
+                "githubusercontent.com",
+                "security.advisories.githubusercontent.com",
+            }:
+                return (False, resp.status)
+            return (True, resp.status)
     except Exception:
         # The policy endpoint may require auth or not exist; treat as a warning only.
+        return (False, 0)
+
+
+def is_safe_ref(ref: str) -> bool:
+    """Return True if ``ref`` looks like a safe git ref or 40-char SHA."""
+    if not ref:
         return False
+    if len(ref) == 40 and all(c in "0123456789abcdef" for c in ref):
+        return True
+    return bool(re.match(r"^[A-Za-z0-9._/-]{1,200}$", ref))
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -146,7 +182,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"::error::{tid}: ref resolution failed: {exc}", file=sys.stderr)
             errors.append(f"{tid}: ref resolution failed")
             continue
-        policy_ok = validate_security_policy(target.get("security_policy_url", ""), token)
+        policy_ok, policy_status = validate_security_policy(target.get("security_policy_url", ""), token)
         if not policy_ok and args.fail_on_missing_policy:
             errors.append(f"{tid}: security policy unreachable")
         resolved["targets"][tid] = {
@@ -154,6 +190,7 @@ def main(argv: list[str] | None = None) -> int:
             "default_branch": default_branch,
             "resolved_commit_sha": sha,
             "security_policy_reachable": policy_ok,
+            "security_policy_status": policy_status,
         }
         print(f"  resolved {repo}@{target['default_ref']} -> {sha[:12]}")
 

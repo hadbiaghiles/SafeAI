@@ -17,16 +17,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c2efbdaa247c3378f8  # v5.3.0
         with:
           python-version: '3.12'
 
       - name: Install dependencies
         shell: bash
-        run: python -m pip install --quiet pyyaml urllib3 jsonschema
+        run: python -m pip install --require-hashes -r community-scans/requirements.txt
 
       - name: Validate manifest structure and repositories
         shell: bash
@@ -35,27 +37,57 @@ jobs:
         run: |
           set -euo pipefail
           python community-scans/scripts/validate_targets.py \
-            --manifest community-scans/targets.yml
+            --manifest community-scans/targets.yml \
+            --fail-on-missing-policy
 
-      - name: Validate manifest against JSON schema
+      - name: Validate targets.yml against schema
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json, sys
-          try:
-              import yaml
-          except ImportError:
-              import subprocess; subprocess.run([sys.executable, "-m", "pip", "install", "pyyaml"], check=True)
-              import yaml
+          import json
+          import yaml
           import jsonschema
           manifest = yaml.safe_load(open("community-scans/targets.yml"))
-          schema = json.load(open("community-scans/report-schema.json"))
-          assert manifest["version"] == 1, "version must be 1"
-          assert len(manifest["targets"]) == 5, "expected five targets"
+          schema = json.load(open("community-scans/targets-schema.json"))
+          jsonschema.validate(manifest, schema)
           ids = [t["id"] for t in manifest["targets"]]
-          assert ids == ["n8n","langchain","crewai","llamaindex","langgraph"], ids
-          print("Manifest schema validation passed for targets:", ids)
+          assert ids == ["n8n", "langchain", "crewai", "llamaindex", "langgraph"], ids
+          print("Target manifest schema validation passed for:", ids)
+          PY
+
+      - name: Validate provenance manifest schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import jsonschema
+          import sys
+          sys.path.insert(0, "community-scans/scripts")
+          from build_scan_manifest import build_manifest
+
+          with open("community-scans/report-schema.json") as fh:
+              schema = json.load(fh)
+          manifest = build_manifest(
+              target_id="n8n",
+              repository="n8n-io/n8n",
+              upstream_url="https://github.com/n8n-io/n8n",
+              requested_ref="master",
+              resolved_commit_sha="a" * 40,
+              safeai_version="1.0.0",
+              safeai_action_ref="ikaruscareer/SafeAI@d656581a1518f5e4aab1785efe0e5eeb3d892cd1",
+              safeai_action_commit="d656581a1518f5e4aab1785efe0e5eeb3d892cd1",
+              rule_set_version="",
+              scan_timestamp_utc="2026-01-01T00:00:00Z",
+              fail_on="critical",
+              no_registry=True,
+              github_run_id="validation",
+              python_version="3.12",
+              disclosure_status="private",
+          )
+          jsonschema.validate(manifest, schema)
+          print("Provenance manifest schema validation passed.")
           PY
 
   validate-workflow-safety:
@@ -63,7 +95,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Check workflow permissions and actions
         shell: bash
@@ -81,27 +115,42 @@ jobs:
           # 1. No workflow may request contents: write or pull-requests: write.
           for job_name, job in doc.get("jobs", {}).items():
               perms = job.get("permissions", {})
-              for forbidden in ("contents: write", "pull-requests: write"):
-                  if isinstance(perms, dict) and perms.get("contents") == "write":
-                      errors.append(f"job {job_name} requests contents: write")
-                  if isinstance(perms, dict) and perms.get("pull-requests") == "write":
-                      errors.append(f"job {job_name} requests pull-requests: write")
+              if isinstance(perms, dict) and perms.get("contents") == "write":
+                  errors.append(f"job {job_name} requests contents: write")
+              if isinstance(perms, dict) and perms.get("pull-requests") == "write":
+                  errors.append(f"job {job_name} requests pull-requests: write")
 
-          # 2. No external publication action (reddit / twitter / issue creation in target).
-          workflow_text = open(path).read().lower()
-          banned = ["reddit", "twitter", "create-issue", "create-pr", "open-issue"]
-          for term in banned:
-              if term in workflow_text:
+          # 2. Every third-party action must be pinned to a full commit SHA.
+          text = open(path).read()
+          for m in re.finditer(r'uses:\s*([^\s]+)', text):
+              ref = m.group(1)
+              if ref.startswith("./") or ref.startswith("docker://"):
+                  continue
+              if re.search(r"@[0-9a-f]{40}$", ref):
+                  continue
+              errors.append(f"action not pinned to a full commit SHA: {ref}")
+
+          # 3. No external publication action (reddit / twitter / issue creation in target).
+          lowered = text.lower()
+          for term in ("reddit.com", "twitter", "create-issue", "open-issue", "create-pr"):
+              if term in lowered:
                   errors.append(f"workflow references banned term: {term}")
 
-          # 3. No step runs target code (no target build/test/install).
+          # 4. No step installs target deps or executes target code. The target
+          # checkout lives at ``target-src``; installs are only allowed from the
+          # SafeAI repo's own requirements files.
           for job_name, job in doc.get("jobs", {}).items():
               for step in job.get("steps", []):
                   run = (step.get("run") or "").lower()
-                  if "npm install" in run or "pip install" in run and "target" in run:
-                      errors.append(f"job {job_name} may install target deps")
-                  if "python target" in run or "run target" in run:
-                      errors.append(f"job {job_name} may execute target code")
+                  for pm in ("npm install", "npm ci", "yarn install", "pnpm install"):
+                      if pm in run:
+                          errors.append(f"job {job_name} may install target deps ({pm})")
+                  if "pip install" in run and "target-src" in run:
+                      errors.append(f"job {job_name} may install target deps (pip)")
+                  for execpat in ("python target-src", "node target-src",
+                                  "bash target-src", "sh target-src", "./target-src"):
+                      if execpat in run:
+                          errors.append(f"job {job_name} may execute target code")
 
           if errors:
               for e in errors:
@@ -115,16 +164,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c2efbdaa247c3378f8  # v5.3.0
         with:
           python-version: '3.12'
+
+      - name: Install test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --require-hashes -r requirements-dev.txt
+          python -m pip install --require-hashes -r community-scans/requirements.txt
 
       - name: Run sanitisation and disclosure unit tests
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --quiet jinja2
           python -m pytest tests/community_scan/ -q

@@ -149,7 +149,7 @@ def validate_no_control_chars(value, label):
     return None
 
 
-def write_outputs(sarif_path, scorecard_path=""):
+def write_outputs(sarif_path, scorecard_path="", safeai_version=""):
     """Append action outputs to ``$GITHUB_OUTPUT`` when present."""
     out_file = os.environ.get("GITHUB_OUTPUT")
     if not out_file:
@@ -160,6 +160,31 @@ def write_outputs(sarif_path, scorecard_path=""):
     if scorecard_path and os.path.isabs(scorecard_path):
         with open(out_file, "a", encoding="utf-8") as fh:
             fh.write(f"scorecard-path={scorecard_path}\n")
+    if safeai_version:
+        with open(out_file, "a", encoding="utf-8") as fh:
+            fh.write(f"safeai-version={safeai_version}\n")
+
+
+def get_safeai_version():
+    """Return installed SafeAI version string, or 'unknown' on failure.
+
+    Runs from a neutral working directory so a checked-out target tree cannot
+    shadow the installed ``safeai`` package.
+    """
+    try:
+        neutral_cwd = os.environ.get("RUNNER_TEMP") or tempfile.mkdtemp(prefix="safeai-ver-")
+        proc = subprocess.run(
+            [sys.executable, "-m", "safeai", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=neutral_cwd,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return proc.stdout.strip().split()[0]
+    except Exception:
+        pass
+    return "unknown"
 
 
 def main(argv=None):
@@ -326,6 +351,16 @@ def main(argv=None):
                 file=sys.stderr,
             )
             return 2
+
+    safeai_version = get_safeai_version()
+    try:
+        write_outputs("", safeai_version=safeai_version)
+    except OSError as exc:
+        print(
+            f"::error::could not write safeai-version output to $GITHUB_OUTPUT: {exc}",
+            file=sys.stderr,
+        )
+        return 2
 
     return proc.returncode
 

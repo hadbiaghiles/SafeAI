@@ -87,6 +87,9 @@ outputs:
   scorecard-path:
     description: 'Absolute path to the generated Markdown scorecard (empty if none).'
     value: ${{ steps.safeai.outputs.scorecard-path }}
+  safeai-version:
+    description: 'Installed SafeAI version (empty if unknown).'
+    value: ${{ steps.safeai.outputs.safeai-version }}
 
 runs:
   using: 'composite'

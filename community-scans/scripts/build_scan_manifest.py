@@ -30,6 +30,7 @@ def build_manifest(
     github_run_id: str,
     python_version: str,
     disclosure_status: str,
+    security_policy_url: str = "",
 ) -> dict[str, Any]:
     return {
         "schema_version": 1,
@@ -53,6 +54,7 @@ def build_manifest(
             "python_version": python_version,
         },
         "disclosure_status": disclosure_status,
+        "security_policy_url": security_policy_url,
     }
 
 
@@ -73,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--github-run-id", default="")
     parser.add_argument("--python-version", default=platform.python_version())
     parser.add_argument("--disclosure-status", default="private")
+    parser.add_argument("--security-policy-url", default="")
     parser.add_argument("--out", required=True)
     args = parser.parse_args(argv)
 
@@ -92,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
         github_run_id=args.github_run_id,
         python_version=args.python_version,
         disclosure_status=args.disclosure_status,
+        security_policy_url=args.security_policy_url,
     )
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)

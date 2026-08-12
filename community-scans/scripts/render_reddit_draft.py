@@ -29,7 +29,7 @@ def _load_templates(template_dir: str) -> Any:
     return env
 
 
-def render(summary: dict[str, Any], template_dir: str, target_public: bool) -> dict[str, str]:
+def render(summary: dict[str, Any], template_dir: str) -> dict[str, str]:
     env = _load_templates(template_dir)
     reddit_tpl = env.get_template("reddit-post.md.j2")
     public_tpl = env.get_template("public-summary.md.j2")
@@ -48,6 +48,7 @@ def render(summary: dict[str, Any], template_dir: str, target_public: bool) -> d
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Render Reddit and maintainer drafts.")
     parser.add_argument("--summary", required=True, help="Sanitised summary JSON")
+    parser.add_argument("--manifest", default="", help="Optional provenance manifest JSON")
     parser.add_argument("--template-dir", default="community-scans/templates")
     parser.add_argument("--reddit-out", required=True)
     parser.add_argument("--public-out", required=True)
@@ -56,8 +57,27 @@ def main(argv: list[str] | None = None) -> int:
 
     with open(args.summary, "r", encoding="utf-8") as fh:
         summary = json.load(fh)
+    if args.manifest:
+        with open(args.manifest, "r", encoding="utf-8") as fh:
+            manifest = json.load(fh)
+        # The manifest is authoritative for provenance fields; retain the
+        # sanitised summary's display name and finding aggregates.
+        summary.update({
+            key: manifest[key]
+            for key in (
+                "repository",
+                "upstream_url",
+                "requested_ref",
+                "resolved_commit_sha",
+                "scan_timestamp_utc",
+                "safeai_version",
+                "disclosure_status",
+                "security_policy_url",
+            )
+            if key in manifest
+        })
 
-    rendered = render(summary, args.template_dir, True)
+    rendered = render(summary, args.template_dir)
 
     os.makedirs(os.path.dirname(args.reddit_out), exist_ok=True)
     os.makedirs(os.path.dirname(args.public_out), exist_ok=True)

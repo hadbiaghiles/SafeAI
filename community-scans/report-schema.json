@@ -28,6 +28,7 @@
     "safeai_action_ref": { "type": "string" },
     "safeai_action_commit": { "type": "string", "pattern": "^([0-9a-f]{40})?$" },
     "rule_set_version": { "type": "string" },
+    "security_policy_url": { "type": "string" },
     "configuration": {
       "type": "object",
       "required": ["fail_on", "no_registry"],

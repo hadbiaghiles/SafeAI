@@ -12,7 +12,10 @@ from sanitise_report import (
     classify,
     redact_secret,
     sanitise_report,
+    sanitize_location,
+    sanitize_text,
 )
+from validate_targets import is_safe_ref, validate_security_policy
 
 FIXTURE_DIR = os.path.join(os.path.dirname(__file__), "fixtures")
 
@@ -86,10 +89,56 @@ def test_sanitise_removes_sensitive_from_public():
 def test_markdown_escaping_no_execution():
     report = _sample_report([
         {"id": "1", "rule_id": "R1", "severity": "high", "category": "injection",
-         "summary": "$(rm -rf /) backtick `code`", "location": {"file": "a.py", "line": 1}},
+         "summary": "$(rm -rf /) backtick `code` [link](http://evil.example)", "location": {"file": "a.py", "line": 1}},
     ])
     summary = sanitise_report(report)
-    assert "$(rm -rf /)" not in summary["findings"][0]["summary"] or True  # summary redaction only hits secrets
+    pub = summary["findings"][0]["summary"]
+    assert "$(rm -rf /)" not in pub
+    assert "http://evil.example" not in pub
+    assert "[URL_REDACTED]" in pub
+    # Markdown metacharacters are escaped, so they cannot forge headings/links.
+    assert "`code`" not in pub
+
+
+def test_markdown_injection_is_escaped():
+    text = "# Heading\n\n[click](javascript:alert(1))\n\n**bold** and <script>alert(1)</script>"
+    out = sanitize_text(text)
+    # The leading '#' must be escaped so it cannot render as a heading.
+    assert out.startswith("\\# Heading")
+    assert "<script>" not in out
+    assert "javascript:alert" not in out
+    assert "\\# Heading" in out
+
+
+def test_location_with_malicious_path_is_redacted():
+    loc = {"file": "../../etc/passwd\0", "line": -5}
+    assert sanitize_location(loc) == {"file": "[REDACTED_PATH]", "line": None}
+    safe = sanitize_location({"file": "src/agent.py", "line": 42})
+    assert safe == {"file": "src/agent.py", "line": 42}
+
+
+def test_scorecard_summary_structure_extracted():
+    report = _sample_report([])
+    report["safeai_security_scorecard"] = {"summary": {"score": 8.4}}
+    summary = sanitise_report(report)
+    assert summary["safeai_score"] == 8.4
+
+
+def test_is_safe_ref():
+    assert is_safe_ref("a" * 40)
+    assert is_safe_ref("main")
+    assert is_safe_ref("refs/heads/feat/x")
+    assert not is_safe_ref("")
+    assert not is_safe_ref("; rm -rf /")
+    assert not is_safe_ref("$(touch x)")
+
+
+def test_security_policy_validation_rejects_non_github():
+    ok, _status = validate_security_policy("https://example.com/policy", None)
+    assert ok is False
+    ok2, _ = validate_security_policy("", None)
+    assert ok2 is False
+
 
 
 def test_target_name_special_characters():
@@ -124,6 +173,25 @@ def test_manifest_schema_valid():
     jsonschema.validate(manifest, schema)
 
 
+def test_manifest_records_security_policy_url():
+    import jsonschema
+
+    with open(os.path.join(FIXTURE_DIR, "..", "..", "..", "community-scans", "report-schema.json")) as fh:
+        schema = json.load(fh)
+    manifest = build_manifest(
+        target_id="crewai", repository="crewAIInc/crewAI",
+        upstream_url="https://github.com/crewAIInc/crewAI",
+        requested_ref="main", resolved_commit_sha="b" * 40,
+        safeai_version="1.0.0", safeai_action_ref="local:./@abc",
+        safeai_action_commit="", rule_set_version="",
+        scan_timestamp_utc="2026-01-01T00:00:00Z", fail_on="critical",
+        no_registry=True, github_run_id="123", python_version="3.12", disclosure_status="private",
+        security_policy_url="https://github.com/crewAIInc/crewAI/security/policy",
+    )
+    assert manifest["security_policy_url"].endswith("/security/policy")
+    jsonschema.validate(manifest, schema)
+
+
 def test_reddit_draft_contains_disclaimer(tmp_path):
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "community-scans", "scripts"))
     from render_reddit_draft import render
@@ -139,7 +207,7 @@ def test_reddit_draft_contains_disclaimer(tmp_path):
         "security_policy_url": "https://github.com/owner/test/security/policy",
         "disclosure_status": "pending",
     })
-    rendered = render(summary, os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "community-scans", "templates")), True)
+    rendered = render(summary, os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "community-scans", "templates")))
     assert "do not constitute a complete security audit" in rendered["reddit"]
     assert "read-only static analysis" in rendered["reddit"]
     assert "Reddit" not in rendered["reddit"] or "draft" in rendered["reddit"].lower()
