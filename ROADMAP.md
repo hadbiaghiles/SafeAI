@@ -4,7 +4,7 @@ SafeAI is a **Static AI Capability & Risk Analyzer** — think SonarQube for AI 
 
 This document describes the roadmap across **two editions**: the open-source **Community Edition (Apache 2.0, offline, local-first)** and the commercial **Corporate Edition (evidence and governance plane)**. Milestones are not strictly sequential; work may proceed in parallel where dependencies allow.
 
-> **Current state:** v1.4-b shipped; CE 1.5 environment-inventory and dependency-correlation work is in progress on this branch. Community Edition **CE 1.4 (Reviewable Change)** is substantially complete; CE 1.5/1.6/2.0 and the entire Corporate Edition are planned.
+> **Current state:** v1.6.0 shipped. Community Edition **CE 1.4 (Reviewable Change)** is complete; **CE 1.5 (True Capability Surface)** env inventory + correlation shipped; **CE 1.6 (AI Component Records)** partial; **CE 2.0** and the entire Corporate Edition are planned.
 
 ---
 
@@ -22,7 +22,7 @@ Status legend: ✅ **Shipped** · 🔄 **In progress / partial** · ⏳ **Planne
 
 *Goal: make SafeAI the thing a reviewer reads first on any PR that touches an agent.*
 
-**Status: ✅ shipped (v1.3 → v1.4 → v1.4-b); a few items remain.**
+**Status: ✅ shipped (v1.3 → v1.4 → v1.4-b → v1.5 → v1.6); complete.**
 
 ### Tool-centric diff model *(do this first — it is a schema change)*
 - ✅ Re-key capability snapshots on `(tool_identity, capability, access_mode)` instead of flat capability sets — `safeai/analysis/tool_identity.py` (path-independent keys), `tool_surface.py`, `capability_diff.py` (schema v2, per-tool).
@@ -35,6 +35,7 @@ Status legend: ✅ **Shipped** · 🔄 **In progress / partial** · ⏳ **Planne
 - ✅ `--pr-comment` / `--pr-comment-stdout`: a short, grouped, reviewer-facing summary (never posted by SafeAI) — grouped by tool/server, leads with escalations, suppresses unchanged surface.
 - ✅ Branch/base auto-detection — GitHub Actions, GitLab CI, and Azure Pipelines (`safeai/kya/ci_context.py`, `PROVIDERS`).
 - ✅ Risky-combination detection — untrusted input + shell, autonomous planning + broad access, delegation + external side effects (`ESC_COMBO_*`).
+- ✅ **GitHub Actions Marketplace action** — composite action (`action.yml`) with SARIF upload, scorecard outputs, and native exit-code passthrough. Hermetic install path (`SAFEAI_ACTION_FIND_LINKS`), least-privilege design (`contents: read`), `set_output` sanitisation, and self-validating CI (`scripts/safeai-action.py`, `.github/workflows/action-test.yml`, 24 tests).
 
 ### Surface depth *(the two that matter)*
 - 🔄 **Multi-source MCP discovery** — MCP servers discovered across the scanned repo and Claude Code configuration, normalised into one capability model with provenance on every entry. Cursor / Windsurf source scopes and user/global scopes are **not yet read** (out-of-repo scopes are intentionally behind an explicit gate and excluded from exports by default).
@@ -48,12 +49,15 @@ Status legend: ✅ **Shipped** · 🔄 **In progress / partial** · ⏳ **Planne
 - ✅ **Policy decision recorded on every scan** (pass / warn / review-required / block / accepted-exception, with rationale).
 - ⏳ **Registry freshness indicators** — never scanned, stale, changed since last approval, policy drift.
 - ⏳ **Locally enrichable agent metadata** — business owner, technical owner, intended purpose, environment, lifecycle status, review date.
+- ✅ **CLI version support** — `safeai --version` / `-V` prints a stable machine-readable line; single source of truth in `safeai/version.py` (`SAFEAI_VERSION`), with `pyproject.toml` reading the version dynamically from `safeai.__version__`.
+- ✅ **Developer guide** — local development and GitHub Actions usage guide (`DEVELOPER_GUIDE.md`), including the Security Scorecard flags.
 
 ### Trust and honesty
 - ✅ **Mandatory machine-readable assurance boundary block** in every report and manifest — what was verified (declared tools, prompt files, MCP servers, workflow structure, configuration) versus what cannot be verified statically (IAM permissions, runtime identity, deployed network policy, actual behaviour) — `assurance_boundary`.
 - ⏳ **Governance signal detection** — timeout, retry policy, approval workflow, audit logging, rate limiting.
 - ✅ **Better terminal output** — severity-grouped summary, clear layout, improved signal-to-noise (v1.4-b).
 - ✅ **Severity-weighted trust score** — 7-category weighted scoring keyed on `safeai/severity.py`.
+- ✅ **Security Scorecard** — a deterministic, auditable 0–10 report summarising a scan into an overall score, per-category scores, and a `pass`/`warn`/`fail` outcome. Markdown, JSON (`scorecard-schema.json`), and GitHub Actions step summary outputs. `--scorecard-fail-under N` gating. ~55 tests (`safeai/scorecard.py`).
 
 ### Exit criterion
 > ✅ **Achieved.** A reviewer sees, in a PR comment, that a specific **named tool** gained a specific **new authority** — and SafeAI records that change, the policy decision and the assurance boundary in local KYA history. Ordinary SAST does not produce that.
@@ -64,7 +68,7 @@ Status legend: ✅ **Shipped** · 🔄 **In progress / partial** · ⏳ **Planne
 
 *Goal: close the gap between what an agent declares and what it actually needs to run.*
 
-**Status: 🔄 partial — CE 1.5 environment inventory and correlation shipped; remaining surface items planned below.**
+**Status: ✅ shipped (v1.5.0); remaining surface items planned below.**
 
 - ✅ **Secret and configuration dependency inventory** — names and sources only, never values: `os.getenv`, `os.environ`, `process.env`, dotenv keys, shell/template interpolation, AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, HashiCorp Vault, Kubernetes `secretKeyRef` (`safeai/analyzers/env_dependency`).
 - ✅ **Dependency-to-capability correlation** — referenced credential/config with no matching declared capability = undeclared-capability candidate; declared credential-demanding capability with no referenced config = orphaned tool (`safeai/analysis/dependency_correlation.py`, rules `DEP_*`). Correlation findings feed severity, trust score, SARIF, HTML and the manifest. Matching uses whole-word-segment family keywords (no substring false positives on `jdbc`/`rabbit_mq`), with provider families taking precedence over the generic `api` fallback; the payload-carrying `ENV_DEP_INVENTORY` finding is exempt from suppression so the inventory section can never be blanked.
@@ -189,9 +193,21 @@ Mindset: sequencing matters more than features — get it wrong and CE becomes u
 
 ---
 
+## Community & Quality Initiatives
+
+*Cross-cutting work that supports the roadmap but is not tied to a specific milestone.*
+
+- ✅ **Community Scan programme** — governed workflow for scanning public third-party agent frameworks and disclosing results responsibly. Target manifest, methodology, disclosure policy, private pilot documentation, and pinned-dependency requirements (`community-scans/`).
+- ✅ **Validate Community Scan CI** — validation workflow for the community scan programme: target manifest validation, report schema validation, and pytest for pipeline scripts (`.github/workflows/validate-community-scan.yml`).
+- ✅ **Fuzz testing** — P0 parser and sanitiser fuzzing for the scorecard, report schema, and targets manifest (`fuzz/`, `.github/workflows/fuzz.yml`).
+- ✅ **OSSF Scorecard analysis** — OpenSSF Scorecard analysis workflow for supply-chain security posture (`.github/workflows/scorecard-analysis.yml`).
+
+---
+
 ## Registry of latest shipped work (this branch, see CHANGELOG/releases)
 
-- **CE 1.5 (in progress)** — environment & credential dependency inventory (`os.getenv`/`os.environ`/`process.env`/dotenv/shell/template, AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, HashiCorp Vault, Kubernetes `secretKey` — names and sources only, never values) and dependency-to-capability correlation (`DEP_UNDECLARED_CAPABILITY`, `DEP_ORPHANED_TOOL`), surfaced in terminal, HTML, SARIF, and the KYA manifest (`dependency_inventory`, `dependency_correlation`) with a reviewable name-family heuristic.
+- **v1.6.0** — **Security Scorecard** (0–10 deterministic score, Markdown/JSON outputs, `--scorecard-fail-under` gating, `scorecard-schema.json`), **Community Scan programme** (private pilot, target manifest, sanitisation pipeline, disclosure workflow), **CLI version support** (`safeai --version`), **Developer guide** (`DEVELOPER_GUIDE.md`), GitHub Action hardening (hermetic install path, `set_output` sanitisation, version source of truth).
+- **v1.5.0** — **GitHub Actions Marketplace action** (composite action with SARIF upload, scorecard outputs, native exit-code passthrough; `action.yml`, `scripts/safeai-action.py`, 24 tests). **Environment & credential dependency inventory** (`os.getenv`/`os.environ`/`process.env`/dotenv/shell/template, AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, HashiCorp Vault, Kubernetes `secretKey`) and **dependency-to-capability correlation** (`DEP_UNDECLARED_CAPABILITY`, `DEP_ORPHANED_TOOL`), surfaced in terminal, HTML, SARIF, and the KYA manifest. First stable release (`Development Status :: 5 - Production/Stable`).
 - **v1.4-b** — unified **org-wide shared registry** (`SAFEAI_REGISTRY` env var or `~/.safeai/registry.db`), self-contained **HTML reports** for scan and registry output, docs aligned to the v1.4 capability model.
 - **v1.4** — tool-centric capability model + access modes, 14 declarative escalation rules with subsumption, per-tool capability diff, deep **Claude Code** analysis, **PR comment** review output, **assurance boundary**, governed suppressions policy-as-code, severity centralization (`safeai/severity.py`), KYA registry schema v2 migration.
 - **Architecture refactor (P1)** — `safeai/kya/registry` split into `schema/connection/persist/queries`, `ScanOrchestrator` extracted from `run_scan`, `ScanPostProcessor` extracted from the scan CLI command. No public API break.
