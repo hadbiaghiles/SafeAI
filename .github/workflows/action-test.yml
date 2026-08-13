@@ -38,30 +38,46 @@ jobs:
           echo "$WHEEL"
           python scripts/check_wheel.py "$WHEEL"
 
-      - name: Install the built SafeAI wheel (published-style install path)
-        run: pip install dist/*.whl
+      # The composite action installs SafeAI from PyPI by default. For this test
+      # we pin the version from the package's single source of truth and point
+      # the action's install command at ``dist/`` via SAFEAI_ACTION_FIND_LINKS.
+      # This exercises the *real* install path (version pin + pip install) while
+      # resolving SafeAI from the local build instead of PyPI, so the test stays
+      # hermetic and the pin auto-syncs with every version bump.
+      - name: Resolve SafeAI version from the package
+        id: safeai-version
+        run: |
+          VER=$(python -c "import safeai; print(safeai.__version__)")
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
 
-      # The composite action installs SafeAI from PyPI by default; after the
-      # wheel above is installed, the exact-version install is satisfied by the
-      # local wheel, exercising the real install command without hitting PyPI.
       - name: Run SafeAI action against a clean fixture
         uses: ./
         id: clean
+        env:
+          SAFEAI_ACTION_FIND_LINKS: "${{ github.workspace }}/dist"
         with:
           path: tests/fixtures/action/clean
-          version: "1.5.0"
+          version: "${{ steps.safeai-version.outputs.version }}"
           fail-on: critical
           sarif: clean.sarif
+          scorecard: clean-scorecard.md
+          scorecard-json: clean-scorecard.json
+          scorecard-summary: "true"
 
       - name: Run SafeAI action against a deliberately risky fixture
         uses: ./
         id: risky
         continue-on-error: true
+        env:
+          SAFEAI_ACTION_FIND_LINKS: "${{ github.workspace }}/dist"
         with:
           path: tests/fixtures/action/risky
-          version: "1.5.0"
+          version: "${{ steps.safeai-version.outputs.version }}"
           fail-on: critical
           sarif: risky.sarif
+          scorecard: risky-scorecard.md
+          scorecard-json: risky-scorecard.json
+          scorecard-summary: "true"
 
       - name: Assert risky fixture failed as expected
         if: always()
@@ -108,6 +124,62 @@ jobs:
           test -f "${{ steps.clean.outputs.sarif-path }}" \
             || { echo "::error::sarif-path points to a missing file"; exit 1; }
           echo "sarif-path output OK: ${{ steps.clean.outputs.sarif-path }}"
+
+      - name: Assert scorecard-path output is exposed to consumers
+        if: always()
+        run: |
+          test -n "${{ steps.clean.outputs.scorecard-path }}" \
+            || { echo "::error::scorecard-path output is empty (composite output mapping missing)"; exit 1; }
+          test -f "${{ steps.clean.outputs.scorecard-path }}" \
+            || { echo "::error::scorecard-path points to a missing file"; exit 1; }
+          echo "scorecard-path output OK: ${{ steps.clean.outputs.scorecard-path }}"
+
+      - name: Validate scorecard JSON artifacts
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          for name in ("clean-scorecard.json", "risky-scorecard.json"):
+              assert os.path.exists(name), f"missing {name}"
+              with open(name, encoding="utf-8") as fh:
+                  doc = json.load(fh)
+              assert "safeai_security_scorecard" in doc, f"{name} missing scorecard key"
+              sc = doc["safeai_security_scorecard"]
+              assert sc["schema_version"] == 1, f"{name} schema_version != 1"
+              assert "summary" in sc, f"{name} missing summary"
+              assert "score" in sc["summary"], f"{name} missing score"
+              assert "status" in sc["summary"], f"{name} missing status"
+              assert "categories" in sc, f"{name} missing categories"
+              print(f"{name}: scorecard OK (score={sc['summary']['score']}, status={sc['summary']['status']})")
+          PY
+
+      - name: Validate scorecard Markdown artifacts
+        if: always()
+        run: |
+          python - <<'PY'
+          import os
+          for name in ("clean-scorecard.md", "risky-scorecard.md"):
+              assert os.path.exists(name), f"missing {name}"
+              with open(name, encoding="utf-8") as fh:
+                  content = fh.read()
+              assert "# SafeAI Security Scorecard" in content, f"{name} missing title"
+              assert "## Category scores" in content, f"{name} missing category scores"
+              assert "## Severity distribution" in content, f"{name} missing severity distribution"
+              print(f"{name}: Markdown scorecard OK ({len(content)} bytes)")
+          PY
+
+      - name: Assert scorecard preserved after policy failure
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          with open("risky-scorecard.json", encoding="utf-8") as fh:
+              doc = json.load(fh)
+          sc = doc["safeai_security_scorecard"]
+          assert sc["summary"]["status"] == "fail", f"expected fail status, got {sc['summary']['status']}"
+          assert sc["summary"]["blocking_findings"] > 0, "expected blocking findings"
+          print(f"risky scorecard survives failure with status={sc['summary']['status']}")
+          PY
 
   suite:
     name: Existing SafeAI test suite

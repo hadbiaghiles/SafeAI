@@ -93,6 +93,9 @@ def test_action_outputs_mapped_to_step_outputs(action):
     assert "sarif-path" in outputs
     assert "value" in outputs["sarif-path"]
     assert outputs["sarif-path"]["value"] == "${{ steps.safeai.outputs.sarif-path }}"
+    assert "scorecard-path" in outputs
+    assert "value" in outputs["scorecard-path"]
+    assert outputs["scorecard-path"]["value"] == "${{ steps.safeai.outputs.scorecard-path }}"
     step_ids = {step.get("id") for step in action["runs"]["steps"]}
     assert "safeai" in step_ids
 
@@ -113,6 +116,10 @@ def test_action_inputs_map_to_real_cli_flags():
         "fail-on-escalation",  # --fail-on-escalation
         "no-registry", # --no-registry
         "extra-args",  # additional argv elements (safe, list-based)
+        "scorecard",           # --scorecard
+        "scorecard-json",      # --scorecard-json
+        "scorecard-summary",   # --scorecard-summary
+        "scorecard-fail-under", # --scorecard-fail-under
     }
     assert inputs == expected
 
@@ -359,6 +366,27 @@ def test_sarif_parent_dir_created(driver, tmp_path):
     })
     assert proc.returncode == 0
     assert os.path.exists(sarif)
+
+
+def test_driver_scorecard_summary_uses_github_summary_path(driver, tmp_path):
+    scorecard_md = str(tmp_path / "scorecard.md")
+    scorecard_json = str(tmp_path / "scorecard.json")
+    summary_path = str(tmp_path / "step-summary.md")
+    proc = _run_driver({
+        "INPUT_PATH": os.path.join(FIXTURES, "clean"),
+        "INPUT_SARIF": str(tmp_path / "clean.sarif"),
+        "INPUT_FAIL_ON": "critical",
+        "INPUT_SCORECARD": scorecard_md,
+        "INPUT_SCORECARD_JSON": scorecard_json,
+        "INPUT_SCORECARD_SUMMARY": "true",
+        "GITHUB_STEP_SUMMARY": summary_path,
+    })
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    assert os.path.exists(scorecard_md)
+    assert os.path.exists(scorecard_json)
+    assert os.path.exists(summary_path)
+    # Regression guard: do not treat literal "true" as a filesystem path.
+    assert not os.path.exists(os.path.join(REPO_ROOT, "true"))
 
 
 def test_no_secret_values_in_output(driver, tmp_path):

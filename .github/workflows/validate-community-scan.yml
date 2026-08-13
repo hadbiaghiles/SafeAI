@@ -1,0 +1,186 @@
+name: Validate Community Scan
+
+on:
+  pull_request:
+    paths:
+      - 'community-scans/**'
+      - '.github/workflows/community-scan.yml'
+      - '.github/workflows/validate-community-scan.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-manifest:
+    name: Validate target manifest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        shell: bash
+        run: python -m pip install --require-hashes -r community-scans/requirements.txt
+
+      - name: Validate manifest structure and repositories
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          python community-scans/scripts/validate_targets.py \
+            --manifest community-scans/targets.yml
+
+      - name: Validate targets.yml against schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import yaml
+          import jsonschema
+          manifest = yaml.safe_load(open("community-scans/targets.yml"))
+          schema = json.load(open("community-scans/targets-schema.json"))
+          jsonschema.validate(manifest, schema)
+          ids = [t["id"] for t in manifest["targets"]]
+          assert ids == ["n8n", "langchain", "crewai", "llamaindex", "langgraph"], ids
+          print("Target manifest schema validation passed for:", ids)
+          PY
+
+      - name: Validate provenance manifest schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import jsonschema
+          import sys
+          sys.path.insert(0, "community-scans/scripts")
+          from build_scan_manifest import build_manifest
+
+          with open("community-scans/report-schema.json") as fh:
+              schema = json.load(fh)
+          manifest = build_manifest(
+              target_id="n8n",
+              repository="n8n-io/n8n",
+              upstream_url="https://github.com/n8n-io/n8n",
+              requested_ref="master",
+              resolved_commit_sha="a" * 40,
+              safeai_version="1.0.0",
+              safeai_action_ref="ikaruscareer/SafeAI@d656581a1518f5e4aab1785efe0e5eeb3d892cd1",
+              safeai_action_commit="d656581a1518f5e4aab1785efe0e5eeb3d892cd1",
+              rule_set_version="",
+              scan_timestamp_utc="2026-01-01T00:00:00Z",
+              fail_on="critical",
+              no_registry=True,
+              github_run_id="validation",
+              python_version="3.12",
+              disclosure_status="private",
+          )
+          jsonschema.validate(manifest, schema)
+          print("Provenance manifest schema validation passed.")
+          PY
+
+  validate-workflow-safety:
+    name: Validate workflow safety constraints
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Check workflow permissions and actions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import re, sys, yaml
+
+          path = ".github/workflows/community-scan.yml"
+          with open(path) as fh:
+              doc = yaml.safe_load(fh)
+
+          errors = []
+
+          # 1. No workflow may request contents: write or pull-requests: write.
+          for job_name, job in doc.get("jobs", {}).items():
+              perms = job.get("permissions", {})
+              if isinstance(perms, dict) and perms.get("contents") == "write":
+                  errors.append(f"job {job_name} requests contents: write")
+              if isinstance(perms, dict) and perms.get("pull-requests") == "write":
+                  errors.append(f"job {job_name} requests pull-requests: write")
+
+          # 2. Every third-party action must be pinned to a full commit SHA.
+          text = open(path).read()
+          for m in re.finditer(r'uses:\s*([^\s]+)', text):
+              ref = m.group(1)
+              if ref.startswith("./") or ref.startswith("docker://"):
+                  continue
+              if re.search(r"@[0-9a-f]{40}$", ref):
+                  continue
+              errors.append(f"action not pinned to a full commit SHA: {ref}")
+
+          # 3. No external publication action (reddit / twitter / issue creation in target).
+          lowered = text.lower()
+          for term in ("reddit.com", "twitter", "create-issue", "open-issue", "create-pr"):
+              if term in lowered:
+                  errors.append(f"workflow references banned term: {term}")
+
+          # 4. No step installs target deps or executes target code. The target
+          # checkout lives at ``target-src``; installs are only allowed from the
+          # SafeAI repo's own requirements files.
+          for job_name, job in doc.get("jobs", {}).items():
+              for step in job.get("steps", []):
+                  run = (step.get("run") or "").lower()
+                  for pm in ("npm install", "npm ci", "yarn install", "pnpm install"):
+                      if pm in run:
+                          errors.append(f"job {job_name} may install target deps ({pm})")
+                  if "pip install" in run and "target-src" in run:
+                      errors.append(f"job {job_name} may install target deps (pip)")
+                  for execpat in ("python target-src", "node target-src",
+                                  "bash target-src", "sh target-src", "./target-src"):
+                      if execpat in run:
+                          errors.append(f"job {job_name} may execute target code")
+
+          if errors:
+              for e in errors:
+                  print(f"::error::{e}")
+              sys.exit(1)
+          print("Workflow safety validation passed.")
+          PY
+
+  validate-sanitisation:
+    name: Validate sanitisation and public report fields
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b  # v5.3.0
+        with:
+          python-version: '3.12'
+
+      - name: Install test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --require-hashes -r requirements-dev.txt
+          python -m pip install --require-hashes -r community-scans/requirements.txt
+
+      - name: Run sanitisation and disclosure unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest tests/community_scan/ -q

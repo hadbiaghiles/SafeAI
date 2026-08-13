@@ -1,0 +1,46 @@
+version: 1
+targets:
+  - id: n8n
+    repository: n8n-io/n8n
+    display_name: n8n
+    ecosystem: typescript
+    category: workflow-and-agent-platform
+    default_ref: master
+    upstream_url: https://github.com/n8n-io/n8n
+    security_policy_url: https://github.com/n8n-io/n8n/security/policy
+
+  - id: langchain
+    repository: langchain-ai/langchain
+    display_name: LangChain
+    ecosystem: python
+    category: llm-application-framework
+    default_ref: master
+    upstream_url: https://github.com/langchain-ai/langchain
+    security_policy_url: https://github.com/langchain-ai/langchain/security/policy
+
+  - id: crewai
+    repository: crewAIInc/crewAI
+    display_name: CrewAI
+    ecosystem: python
+    category: multi-agent-framework
+    default_ref: main
+    upstream_url: https://github.com/crewAIInc/crewAI
+    security_policy_url: https://github.com/crewAIInc/crewAI/security/policy
+
+  - id: llamaindex
+    repository: run-llama/llama_index
+    display_name: LlamaIndex
+    ecosystem: python
+    category: rag-and-agent-framework
+    default_ref: main
+    upstream_url: https://github.com/run-llama/llama_index
+    security_policy_url: https://github.com/run-llama/llama_index/security/policy
+
+  - id: langgraph
+    repository: langchain-ai/langgraph
+    display_name: LangGraph
+    ecosystem: python
+    category: stateful-agent-orchestration
+    default_ref: main
+    upstream_url: https://github.com/langchain-ai/langgraph
+    security_policy_url: https://github.com/langchain-ai/langgraph/security/policy
