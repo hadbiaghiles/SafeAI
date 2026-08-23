@@ -1,8 +1,8 @@
 # SafeAI — Framework Support Reference
 
-> **Current release: v1.7.0** (2026-08-16) — multi-source MCP discovery,
-> named policy profiles, registry freshness, component persistence, and
-> community-contributed framework test fixtures.
+> **Current release: v1.8.0** (2026-08-23) — finding lifecycle engine,
+> tool↔implementation mapping, target taxonomy, detection depth, and
+> community scan expansion.
 
 This document details the detection approach, discovered artifacts, capabilities, and limitations for each supported AI agent framework.
 
@@ -429,7 +429,7 @@ SafeAI detects:
 
 ---
 
-## Test Fixtures (v1.7.0)
+## Test Fixtures (v1.8.0)
 
 Representative test fixtures and validation tests verify that SafeAI correctly
 detects each framework's artifacts and capabilities. These were contributed by

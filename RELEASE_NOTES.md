@@ -1,6 +1,6 @@
 # SafeAI — Release Notes
 
-## v1.7.0 (Unreleased)
+## v1.7.0 (Superseded by v1.8.0)
 
 **SafeAI 1.7.0 completes the CE 1.4 and CE 1.6 roadmap milestones.** Adds
 IDE-scoped MCP discovery, named policy profiles, registry freshness

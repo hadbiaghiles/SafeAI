@@ -70,7 +70,7 @@ Thanks to @adnqcr7-code for these contributions.
 
 - Version bumped to `1.7.0`.
 
-## [1.8.0] - Unreleased
+## [1.8.0] - 2026-08-23
 
 **Curated theme — "True Authority & Complete Lifecycle."** This release bundles
 the remaining CE 1.4, CE 1.5, and CE 1.8 gaps into four cohesive workstreams

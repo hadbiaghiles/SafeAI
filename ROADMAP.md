@@ -4,7 +4,7 @@ SafeAI is a **Static AI Capability & Risk Analyzer** — think SonarQube for AI 
 
 This document describes the roadmap across **two editions**: the open-source **Community Edition (Apache 2.0, offline, local-first)** and the commercial **Corporate Edition (evidence and governance plane)**. Milestones are not strictly sequential; work may proceed in parallel where dependencies allow.
 
-> **Current state:** v1.8.0 is complete (pending merge/release). Community Edition **CE 1.4 (Reviewable Change)** is complete; **CE 1.5 (True Capability Surface)** env inventory + correlation shipped; **CE 1.6 (AI Component Records)** is complete; **CE 1.8 (Code-Level Authority & Provenance)** is complete (tool↔implementation mapping, command-aware MCP resolution, target taxonomy, finding lifecycle, stale suppression guard, agent metadata, prompt/data-leakage depth, cross-component graph); **v1.9.0** is next (remote repository scanning); **CE 2.0** and the entire Corporate Edition remain planned.
+> **Current state:** v1.8.0 is shipped. Community Edition **CE 1.4 (Reviewable Change)** is complete; **CE 1.5 (True Capability Surface)** env inventory + correlation shipped; **CE 1.6 (AI Component Records)** is complete; **CE 1.8 (Code-Level Authority & Provenance)** is complete (tool↔implementation mapping, command-aware MCP resolution, target taxonomy, finding lifecycle, stale suppression guard, agent metadata, prompt/data-leakage depth, cross-component graph); **v1.9.0** is next (remote repository scanning); **CE 2.0** and the entire Corporate Edition remain planned.
 
 ---
 
@@ -222,7 +222,7 @@ Mindset: sequencing matters more than features — get it wrong and CE becomes u
 
 ## Registry of latest shipped work (this branch, see CHANGELOG/releases)
 
-- **v1.7.0 (complete, pending release)** — IDE-scoped MCP discovery (Cursor, Windsurf, VS Code), named policy profiles (`developer`, `strict-ci`, `mcp`, `rag`, `production-agent`), registry freshness indicators, `--strict-suppressions` CI failure, component registry persistence (schema v3 `component_snapshots`), component-change diffs (self-comparison bug fixed).
+- **v1.7.0** — IDE-scoped MCP discovery (Cursor, Windsurf, VS Code), named policy profiles (`developer`, `strict-ci`, `mcp`, `rag`, `production-agent`), registry freshness indicators, `--strict-suppressions` CI failure, component registry persistence (schema v3 `component_snapshots`), component-change diffs (self-comparison bug fixed).
 - **v1.8.0 (curated: "True Authority & Complete Lifecycle")** — ✅ **Shipped.** CE 1.4 + CE 1.5 + CE 1.8 closure: Finding Lifecycle Event Engine (`finding_lifecycle` / schema v4, `ESC_RECURRING_RISK`), Stale Suppression Guard (fingerprint-bound waivers), Agent Enrichment Schema (`safeai registry metadata set` / `agent_metadata` table), Tool ↔ Implementation Mapping, Command-Aware MCP Resolution (`assurance: resolved` vs `unresolved-command`), Target Taxonomy Engine (Database / Object Storage / SaaS API buckets). **Plus depth:** prompt risk depth (multi-line, cross-file, indirect injection, XML/HTML injection), data leakage depth (private keys, JWT, AWS keys, connection strings, base64/hex, per-pattern severity), cross-component analysis (`component_graph.py` — skill→tool→workflow→MCP→model relationships). **Community:** expanded from 5 to 25 community scan targets; `safeai welcome` guided first-run experience. **Gate for CE 2.0.**
 - **v1.9.0 (curated: "Component Depth & Ecosystem Foundations")** — CE 1.6 depth (component version/hash, `safeai registry components` impact-query CLI, unpinned/unsafe-composition detection, manifests), CE 1.4/1.5 leftovers (governance signal detection, heuristic data-flow depth, adapter completion), CE 2.0 foundations (`safeai init`, custom rule authoring scaffold, OWASP Agentic/LLM + NIST AI RMF control mappings, portable registry import, per-scan plugin/rule-pack versions).
 - **v1.6.0** — **Security Scorecard** (0–10 deterministic score, Markdown/JSON outputs, `--scorecard-fail-under` gating, `scorecard-schema.json`), **Community Scan programme** (private pilot, target manifest, sanitisation pipeline, disclosure workflow), **CLI version support** (`safeai --version`), **Developer guide** (`DEVELOPER_GUIDE.md`), GitHub Action hardening (hermetic install path, `set_output` sanitisation, version source of truth).
@@ -233,9 +233,9 @@ Mindset: sequencing matters more than features — get it wrong and CE becomes u
 
 ---
 
-## Implementation inventory (as of v1.7.0 — shipped but previously undocumented)
+## Implementation inventory (as of v1.8.0)
 
-The v1.7.0 architectural review found substantial shipped surface that the
+The v1.8.0 architectural review found substantial shipped surface that the
 roadmap never enumerated. Captured here so future curation does not re-discover
 it:
 
