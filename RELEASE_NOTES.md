@@ -43,7 +43,7 @@ preset.
 
 ---
 
-## v1.8.0 (Unreleased — curated scope: "True Authority & Complete Lifecycle")
+## v1.8.0 (Shipped — curated scope: "True Authority & Complete Lifecycle")
 
 **SafeAI 1.8.0 bundles the remaining CE 1.4 and CE 1.5 gaps into two cohesive
 workstreams and is the gate for starting CE 2.0.** Every item below was confirmed

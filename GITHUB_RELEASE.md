@@ -1,13 +1,12 @@
 # SafeAI — GitHub Release
 
-## v1.7.0
+## v1.8.0
 
 Static AI Capability & Risk Analyzer for AI agents and workflows. Detects
 prompt injection, data leakage, excessive agency, MCP misconfigurations, and
-credential/capability mismatches — entirely offline and static. This release
-completes CE 1.4 and CE 1.6 with **IDE-scoped MCP discovery**, **named
-policy profiles**, **registry freshness indicators**, **suppression CI
-failure**, **component registry persistence**, and **component-change diffs**.
+credential/capability mismatches — entirely offline and static. This curated
+release bundles the remaining CE 1.4, CE 1.5, and CE 1.8 gaps into four
+cohesive workstreams — the gate for starting CE 2.0.
 
 ### Installation
 
@@ -32,61 +31,51 @@ safeai scan /path/to/project --scorecard scorecard.md --scorecard-fail-under 7.0
     fail-on: critical
 ```
 
-### What's New in 1.7.0
+### What's New in 1.8.0
 
-- **IDE-scoped MCP discovery** — Cursor / Windsurf / VS Code MCP configs via
-  `--mcp-ide-scopes` (repo-local only, excluded from exports by default).
-- **Named policy profiles** — `developer`, `strict-ci`, `mcp`, `rag`,
-  `production-agent` via `--policy-profile NAME`.
-- **Registry freshness indicators** — `last_scan_timestamp` + `scan_count`;
-  `safeai registry list` shows freshness status.
-- **Suppression CI failure** — `--strict-suppressions` fails the scan on expired
-  or moved suppressions.
-- **Component registry persistence** — schema-v3 `component_snapshots` with
-  first/last-seen provenance; consuming agents resolved internally.
-- **Component-change diffs** — changed/added/removed components flag consuming
-  agents in the `component_diff` report section.
+**Workstream 1 — Lifecycle & Ownership (CE 1.4)**
+- **Finding Lifecycle Event Engine** — `finding_lifecycle` table (schema v4)
+  tracking state transitions: `introduced → persisting → resolved → reopened`.
+  `ESC_RECURRING_RISK` escalation rule fires when a previously resolved finding
+  is reintroduced.
+- **Stale Suppression Guard** — `detect_stale_suppressions()` binds waivers to
+  exact code fingerprints; `--strict-suppressions` fails on expired or moved
+  suppressions.
+- **Agent Enrichment Schema** — `safeai registry metadata set` for
+  owner/environment stored in a decoupled `agent_metadata` table and shown in
+  HTML reports.
+
+**Workstream 2 — Code-Level Authority (CE 1.5)**
+- **Tool ↔ Implementation Mapping** — correlates declared tools with their
+  implementations; surfaces orphan states (`TOOL_ORPHAN_DECLARED`,
+  `TOOL_ORPHAN_IMPLEMENTED`) with full file/line provenance.
+- **Command-Aware MCP Resolution** — statically resolves local MCP server
+  commands; labels output `assurance: resolved` vs `unresolved-command` vs
+  `external-package`.
+- **Target Taxonomy Engine** — aggregates external-network capabilities into
+  destination buckets (Database, Object Storage, SaaS APIs, Cloud Services,
+  Messaging).
+
+**Workstream 3 — Detection Depth**
+- **Prompt risk depth** — multi-line concatenation, cross-file interpolation,
+  indirect injection via tool calls, XML/HTML tag injection, template variable
+  injection in `.md` files.
+- **Data leakage depth** — RSA/JWT/AWS keys, connection strings,
+  base64/hex-encoded secrets with per-pattern severity differentiation.
+- **Cross-component analysis** — directed skill→tool→workflow→MCP→model
+  relationship graph with orphan detection and coupling analysis.
+
+**Workstream 4 — Community & Onboarding**
+- Expanded community scan targets from 5 to 25 AI tools.
+- `safeai welcome` guided first-run experience.
+
+### Exit Criterion
+
+A reviewer can see, for any tool or MCP server, where it is declared and where
+it is implemented, and SafeAI flags mismatches. Suppressions are provably valid
+against the current code, and every finding carries its longitudinal history.
 
 ---
-
-## v1.8.0 (Curated scope — Shipped: "True Authority & Complete Lifecycle")
-
-A curated release bundling the remaining CE 1.4, CE 1.5, and CE 1.8 gaps into
-four cohesive workstreams — the gate for starting CE 2.0.
-
-- **Workstream 1 — Lifecycle & Ownership (CE 1.4)**: `finding_lifecycle` table
-  (schema v4) with `introduced → persisting → resolved → reopened` and an
-  `ESC_RECURRING_RISK` rule; Stale Suppression Guard binding waivers to exact
-  code fingerprints; `safeai registry metadata set` for owner/environment stored
-  in a decoupled `agent_metadata` table and shown in HTML.
-- **Workstream 2 — Code-Level Authority (CE 1.5)**: Tool ↔ Implementation
-  Mapping (orphan detection); Command-Aware MCP Resolution (`assurance: resolved`
-  vs `unresolved-command`); Target Taxonomy Engine aggregating external-network
-  capabilities into Database / Object Storage / SaaS API buckets.
-- **Workstream 3 — Detection Depth**: Prompt risk depth (multi-line, cross-file,
-  indirect injection, XML/HTML injection); Data leakage depth (private keys, JWT,
-  AWS keys, connection strings, base64/hex); Cross-component analysis
-  (`component_graph.py` — skill→tool→workflow→MCP→model relationships).
-- **Workstream 4 — Community & Onboarding**: Expanded community scan targets
-  from 5 to 25; `safeai welcome` guided first-run experience.
-
-**Exit criterion:** a reviewer can see, for any tool or MCP server, where it is
-declared and where it is implemented, and SafeAI flags mismatches. Suppressions
-are provably valid against the current code, and every finding carries its
-longitudinal history.
-
-## v1.9.0 (Curated scope — Unreleased: "Component Depth & Ecosystem Foundations")
-
-- **CE 1.6 depth** — component version/hash columns; `safeai registry components`
-  impact-query CLI; component-level unpinned-reference and unsafe-composition
-  detection; component manifests / lockfile-style integrity.
-- **CE 1.4 / CE 1.5 leftovers** — governance signal detection; heuristic
-  data-flow depth.
-- **CE 2.0 foundations** — `safeai init`; custom rule authoring scaffold; OWASP
-  Agentic / OWASP LLM / NIST AI RMF control mappings (taxonomy only); portable
-  registry import; per-scan plugin / rule-pack versions.
-- **Remote repository scanning** — scan GitHub, Bitbucket, and other remote
-  repositories directly without local checkout.
 
 ### What It Detects
 
@@ -125,5 +114,5 @@ LlamaIndex, Dify, n8n (15 adapters).
 
 ### Assets
 
-- `safeai_static_analyzer-1.6.0-py3-none-any.whl`
-- `safeai_static_analyzer-1.6.0.tar.gz`
+- `safeai_static_analyzer-1.8.0-py3-none-any.whl`
+- `safeai_static_analyzer-1.8.0.tar.gz`
