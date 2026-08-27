@@ -4,7 +4,18 @@ SafeAI is a **Static AI Capability & Risk Analyzer** — think SonarQube for AI 
 
 This document describes the roadmap across **two editions**: the open-source **Community Edition (Apache 2.0, offline, local-first)** and the commercial **Corporate Edition (evidence and governance plane)**. Milestones are not strictly sequential; work may proceed in parallel where dependencies allow.
 
-> **Current state:** v1.8.0 is shipped. Community Edition **CE 1.4 (Reviewable Change)** is complete; **CE 1.5 (True Capability Surface)** env inventory + correlation shipped; **CE 1.6 (AI Component Records)** is complete; **CE 1.8 (Code-Level Authority & Provenance)** is complete (tool↔implementation mapping, command-aware MCP resolution, target taxonomy, finding lifecycle, stale suppression guard, agent metadata, prompt/data-leakage depth, cross-component graph); **v1.9.0** is next (remote repository scanning); **CE 2.0** and the entire Corporate Edition remain planned.
+> **Current state:** v1.8.0 is shipped. Community Edition **CE 1.4 (Reviewable Change)** is complete; **CE 1.5 (True Capability Surface)** env inventory + correlation shipped; **CE 1.6 (AI Component Records)** is complete; **CE 1.8 (Code-Level Authority & Provenance)** is complete (tool↔implementation mapping, command-aware MCP resolution, target taxonomy, finding lifecycle, stale suppression guard, agent metadata, prompt/data-leakage depth, cross-component graph); **v1.9.0** is next (component depth, ecosystem foundations, `safeai init`); **CE 2.0** (plugin ecosystem, static IaC authority correlation) and **CE-V** (pre-deployment validation packs) are planned; the entire Corporate Edition remains planned.
+
+---
+
+## Community Phases at a Glance
+
+| Phase | Question | Status |
+|---|---|---|
+| **Phase 1** — What can this AI application do? | Capability, tool, MCP, prompt discovery | ✅ Shipped |
+| **Phase 2** — What changed since the last approved version? | Tool-centric escalation diffs, PR review, governed waivers, lifecycle | ✅ Shipped |
+| **Phase 3** — Does declared capability match deployed authority? | Static IaC correlation (CE); live IAM reconciliation (Corporate) | 🔄 CE 2.0 / EE3 |
+| **Phase 4** — Does the agent resist manipulation at its risk surfaces? | Capability-informed validation packs, adversarial regression | ⏳ CE-V (planned) |
 
 ---
 
@@ -143,6 +154,39 @@ These are the items that go deeper on your existing capabilities, but are not ye
 
 ---
 
+## CE-V — Pre-Deployment Validation Packs *(planned)*
+
+*Goal: turn SafeAI's static capability map into a CI-runnable adversarial test suite for agents.*
+
+**Rationale:** Static analysis tells you what an agent *can do* and what *changed*; adversarial validation tests whether the agent *resists* manipulation at those exact risk surfaces. NIST AI 600-1 describes structured pre-deployment testing as a mandatory activity for GenAI systems. This feature is *not* a runtime sandbox, hallucination benchmark, or general jailbreak lab — it is a tightly scoped pre-deployment harness generated directly from the KYA manifest.
+
+**Status: ⏳ planned.** CE-V 1-2 are Community Edition; the external handoff (CE-V 3) belongs in Corporate (EE3).
+
+### CE-V 1 — Validation Pack Generator
+
+- Read the KYA manifest and produce a version-controlled test plan (`safeai-validation-plan.json`)
+- Generate adversarial queries only for detected risk surfaces — no blind brute-force prompts
+- Pack types: prompt injection, indirect retrieval injection, tool-invocation abuse, approval-gate bypass, sensitive-data exfiltration
+- Each test carries: surface type, severity, test input, expected safe behavior assertion, linked finding ID
+- Deterministic local harness: offline, no model calls, no external network, no runtime observation
+- Deterministic pass/fail assertions: "must refuse," "must not call tool X," "must request approval"
+- `safeai validate` command with exit-code gating and SARIF output
+- Validation results labelled as "adversarial test evidence" — never conflated with static-scan evidence
+- Assurance boundary block distinguishes what was tested from what was not
+
+### CE-V 2 — Regression & Pack Versioning
+
+- Persist validation results in the local SQLite registry alongside scan evidence
+- Regression mode: previously failed tests become mandatory passing checks
+- Pack versioning: record pack version, query set, and assertion schema in the manifest
+- `safeai validate diff` to show validation status changes between commits
+- Community-contributed validation packs (consistent with CE 2.0 community registry)
+
+### Exit criterion
+> A developer can run `safeai validate` in CI, see which capability-informed attacks the agent resisted or failed, and link each failure to the source finding.
+
+---
+
 ## CE permanent guarantees
 
 - ✅ **Local by default** — no account, server, daemon, telemetry or external network calls.
@@ -150,6 +194,7 @@ These are the items that go deeper on your existing capabilities, but are not ye
 - ✅ **Static truth only** — detected evidence always distinguished from unknown runtime state.
 - ✅ **No compliance certification claims** — mappings and evidence, never a declaration that an agent is safe or compliant.
 - ✅ **No runtime-platform creep in core** — no interception, sandboxing, identity issuance or production monitoring.
+- ✅ **No detection gating by edition** — Community Edition must never receive deliberately weakened detection depth; Corporate adds governance and aggregation on top of the same scanner, not a better scanner.
 
 ---
 
