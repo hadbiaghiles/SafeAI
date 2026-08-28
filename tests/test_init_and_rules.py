@@ -12,6 +12,7 @@ class TestSafeAIInit:
     def test_init_creates_files(self, tmp_path):
         from safeai.cmd.cli import main
 
+        original_cwd = os.getcwd()
         os.chdir(tmp_path)
         try:
             ret = main(["init"])
@@ -22,11 +23,12 @@ class TestSafeAIInit:
             assert (tmp_path / ".safeai" / "suppressions.yml").exists()
             assert (tmp_path / ".safeai" / "rules" / "example_rules.yaml").exists()
         finally:
-            os.chdir("C:/Projects/SafeAI/safeai")
+            os.chdir(original_cwd)
 
     def test_init_config_has_defaults(self, tmp_path):
         from safeai.cmd.cli import main
 
+        original_cwd = os.getcwd()
         os.chdir(tmp_path)
         try:
             main(["init"])
@@ -35,11 +37,12 @@ class TestSafeAIInit:
             assert config["environment"] == "development"
             assert config["lifecycle_status"] == "active"
         finally:
-            os.chdir("C:/Projects/SafeAI/safeai")
+            os.chdir(original_cwd)
 
     def test_init_idempotent_by_default(self, tmp_path):
         from safeai.cmd.cli import main
 
+        original_cwd = os.getcwd()
         os.chdir(tmp_path)
         try:
             main(["init"])
@@ -49,11 +52,12 @@ class TestSafeAIInit:
             # File should NOT be overwritten
             assert (tmp_path / ".safeai" / "config.yml").read_text() == "custom: true\n"
         finally:
-            os.chdir("C:/Projects/SafeAI/safeai")
+            os.chdir(original_cwd)
 
     def test_init_force_overwrites(self, tmp_path):
         from safeai.cmd.cli import main
 
+        original_cwd = os.getcwd()
         os.chdir(tmp_path)
         try:
             main(["init"])
@@ -63,11 +67,12 @@ class TestSafeAIInit:
             config = yaml.safe_load((tmp_path / ".safeai" / "config.yml").read_text())
             assert "agent_name" in config  # Should be overwritten
         finally:
-            os.chdir("C:/Projects/SafeAI/safeai")
+            os.chdir(original_cwd)
 
     def test_init_strict_ci_profile(self, tmp_path):
         from safeai.cmd.cli import main
 
+        original_cwd = os.getcwd()
         os.chdir(tmp_path)
         try:
             ret = main(["init", "--profile", "strict-ci"])
@@ -76,11 +81,12 @@ class TestSafeAIInit:
             assert policy["description"] is not None
             assert "policies" in policy
         finally:
-            os.chdir("C:/Projects/SafeAI/safeai")
+            os.chdir(original_cwd)
 
     def test_init_preserves_existing_identity(self, tmp_path):
         from safeai.cmd.cli import main
 
+        original_cwd = os.getcwd()
         os.chdir(tmp_path)
         try:
             # First init creates identity
@@ -93,7 +99,7 @@ class TestSafeAIInit:
             config2 = yaml.safe_load((tmp_path / ".safeai" / "config.yml").read_text())
             assert config2.get("local_project_uuid") == uuid1
         finally:
-            os.chdir("C:/Projects/SafeAI/safeai")
+            os.chdir(original_cwd)
 
 
 # ---------------------------------------------------------------------------
