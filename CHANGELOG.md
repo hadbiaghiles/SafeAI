@@ -5,6 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-08-28
+
+### Added — Component version/hash (WS1)
+
+- Component `content_hash` (SHA-256, truncated to 16 chars) stored in the KYA
+  registry's `component_snapshots` table (schema v5).
+- `safeai registry components` CLI lists tracked components with deduplication,
+  type filtering, and consuming-agent resolution.
+- Hash-based `_has_changed()` in `component_diff` replaces data-equality checks.
+
+### Added — `safeai init` + custom rule scaffold (WS2)
+
+- `safeai init [--profile NAME] [--force]` scaffolds `.safeai/` with `config.yml`,
+  `policy.yml`, `suppressions.yml`, and `rules/example_rules.yaml`.
+- Identity-preserving init: existing `local_project_uuid` and `project_id` are
+  never overwritten.
+- `load_rules()` auto-discovers `.safeai/rules/` with validation and metadata.
+
+### Added — Governance signal detection (WS3)
+
+- `GovernanceAnalyzer` detects missing operational governance controls:
+  timeout, retry, approval (HITL), audit logging, rate limiting.
+- Five new rules: `GOV_TIMEOUT_MISSING`, `GOV_RETRY_MISSING`,
+  `GOV_APPROVAL_MISSING`, `GOV_AUDIT_MISSING`, `GOV_RATE_LIMIT_MISSING`.
+- Findings carry `risk_category: "Governance"` for scoring and reporting.
+
+### Added — Control mappings taxonomy (WS4)
+
+- Structured mapping layer between SafeAI rules and external control
+  frameworks: OWASP Top 10 for LLM Applications (2025), OWASP Top 10 for
+  Agentic Applications (2025), and NIST AI RMF 1.0.
+- `map_rule_to_controls()` and `map_findings_to_controls()` API for
+  framework-based filtering and grouping.
+- Taxonomy only — never a compliance or coverage claim.
+
+### Added — Adapter completion (WS5)
+
+- AutoGen framework adapter for Microsoft AutoGen multi-agent systems.
+- LangGraph parser now detects `add_conditional_edges()` calls.
+- Browser automation rules split: `CAP_browser_playwright`,
+  `CAP_browser_selenium`, `CAP_browser_use`.
+
+### Added — Heuristic data-flow depth (WS6)
+
+- `DataFlowAnalyzer` tracks untrusted input propagation into sensitive sinks
+  (prompts, tool calls, shell, file writes, HTTP requests, database queries).
+- Six new rules: `DATAFLOW_prompt`, `DATAFLOW_tool_call`, `DATAFLOW_shell`,
+  `DATAFLOW_file_write`, `DATAFLOW_http_request`, `DATAFLOW_database`.
+
+### Community contributors
+
+Thank you to the following community members for their contributions to
+SafeAI v1.9.0:
+
+- **[@Aming9303](https://github.com/Aming9303)** — `safeai registry components`
+  CLI (PR [#82](https://github.com/ikaruscareer/SafeAI/pull/82)) and
+  `safeai init` command (PR [#83](https://github.com/ikaruscareer/SafeAI/pull/83)).
+- **[@Aming9303](https://github.com/Aming9303)** — GitHub Actions workflow
+  example (PR [#84](https://github.com/ikaruscareer/SafeAI/pull/84)).
+
 ## [1.7.0] - 2026-08-16
 
 ### Added — Multi-source MCP discovery

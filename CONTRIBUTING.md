@@ -131,8 +131,20 @@ chore: update dependency versions
 - Open a [Discussion](https://github.com/ikaruscareer/SafeAI/discussions)
 - Check [GOOD_FIRST_ISSUES.md](./GOOD_FIRST_ISSUES.md) for starter tasks
 - Read [ARCHITECTURE_FOR_CONTRIBUTORS.md](./ARCHITECTURE_FOR_CONTRIBUTORS.md) to understand the codebase
+---
+
+## Community Contributors
+
+We are grateful to the following community members for their contributions:
+
+| Contributor | Contributions |
+|-------------|---------------|
+| [@Aming9303](https://github.com/Aming9303) | `safeai registry components` CLI, `safeai init` command, GitHub Actions workflow example |
+
+Your contributions help make AI safer for everyone. Thank you!
 
 ---
+
 <img width="1024" height="1024" alt="SafeAI_Contribute_Everyone" src="https://github.com/user-attachments/assets/9d0efd4d-c52d-424a-bfaa-941272ce1f63" />
 
 

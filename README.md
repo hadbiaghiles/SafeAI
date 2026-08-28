@@ -709,6 +709,20 @@ See [ROADMAP.md](./ROADMAP.md) for the detailed roadmap.
 
 ---
 
+## Community Contributors
+
+SafeAI is built by and for the AI security community. Thank you to all
+contributors who have helped make AI safer:
+
+- **[@Aming9303](https://github.com/Aming9303)** — `safeai registry components`
+  CLI ([#82](https://github.com/ikaruscareer/SafeAI/pull/82)),
+  `safeai init` command ([#83](https://github.com/ikaruscareer/SafeAI/pull/83)),
+  GitHub Actions workflow example ([#84](https://github.com/ikaruscareer/SafeAI/pull/84)).
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for how to get involved.
+
+---
+
 ## License
 
 SafeAI is released under the Apache 2.0 License.

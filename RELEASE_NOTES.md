@@ -107,6 +107,18 @@ Carries the remaining depth items not in v1.8.0.
 - **CE 2.0 foundations** — `safeai init`; custom rule authoring scaffold; OWASP
   Agentic / OWASP LLM / NIST AI RMF control mappings (taxonomy only); portable
   registry import; per-scan plugin / rule-pack versions.
+
+### Community contributors
+
+Thank you to the following community members for their contributions:
+
+- **[@Aming9303](https://github.com/Aming9303)** — contributed
+  `safeai registry components` CLI (PR
+  [#82](https://github.com/ikaruscareer/SafeAI/pull/82)),
+  `safeai init` command (PR
+  [#83](https://github.com/ikaruscareer/SafeAI/pull/83)), and a
+  GitHub Actions workflow example (PR
+  [#84](https://github.com/ikaruscareer/SafeAI/pull/84)).
 - **Remote repository scanning** — scan GitHub, Bitbucket, and other remote
   repositories directly without local checkout.
 

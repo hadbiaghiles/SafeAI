@@ -19,3 +19,8 @@ the workflow never executes the agent.
 The workflow uses `contents: read` and does not require secrets. A clean scan
 is evidence for human review, not proof that an application is secure,
 compliant, or production-ready.
+
+## Contributed by
+
+This example was contributed by [@Aming9303](https://github.com/Aming9303)
+in [PR #84](https://github.com/ikaruscareer/SafeAI/pull/84).
