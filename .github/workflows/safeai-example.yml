@@ -1,0 +1,47 @@
+name: SafeAI example scan
+
+on:
+  push:
+    paths:
+      - "examples/github-actions/**"
+      - ".github/workflows/safeai-example.yml"
+  pull_request:
+    paths:
+      - "examples/github-actions/**"
+      - ".github/workflows/safeai-example.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Scan synthetic agent
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run SafeAI
+        id: safeai
+        continue-on-error: true
+        uses: ikaruscareer/SafeAI@689b976b3f2380c77b151481ad1431c4696c90c8 # upstream main
+        with:
+          path: examples/github-actions
+          version: "1.8.0"
+          fail-on: critical
+          sarif: safeai-results.sarif
+          no-registry: "true"
+
+      - name: Upload SafeAI report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: safeai-example-report
+          path: safeai-results.sarif
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Propagate SafeAI result
+        if: always()
+        run: test "${{ steps.safeai.outcome }}" = success
