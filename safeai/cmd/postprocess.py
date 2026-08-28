@@ -218,7 +218,9 @@ class ScanPostProcessor:
         from safeai.kya.util import new_scan_id
         from safeai.rules.loader import load_rules
 
-        self.rules = load_rules(self.args.rules)
+        self.rules, self.rule_pack_metadata = load_rules(
+            self.args.rules, scan_root=self.directory
+        )
         self.scan_id = new_scan_id()
 
         effective_config = {
@@ -230,6 +232,10 @@ class ScanPostProcessor:
             "version": _safeai_version(),
             "ruleset_version": _ruleset_version(self.rules),
             "config_hash": config_hash(effective_config),
+            "custom_rules_dir": self.rule_pack_metadata.get("custom_rules_dir"),
+            "custom_rules_count": self.rule_pack_metadata.get("custom_rules_count", 0),
+            "builtin_rules_count": self.rule_pack_metadata.get("builtin_rules_count", 0),
+            "rule_pack_ids": self.rule_pack_metadata.get("rule_pack_ids", []),
         }
         try:
             source_root = os.path.relpath(self.directory, os.getcwd())

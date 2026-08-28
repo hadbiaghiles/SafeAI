@@ -10,7 +10,7 @@ Usage::
                             [--fail-on <level>] [--fail-on-new]
                             [--fail-on-escalation <level>]
     safeai init [--profile <name>] [--force]
-    safeai registry list|show|history|diff|export ...
+    safeai registry list|show|history|diff|export|components ...
 
 KYA (Know Your Agent) behavior:
   * Every scan produces normalized findings (stable fingerprints,
@@ -29,14 +29,9 @@ KYA (Know Your Agent) behavior:
 
 import argparse
 import os
-import re
-import subprocess
 import sys
 
-import yaml
-
 from safeai.cmd.postprocess import ScanPostProcessor
-from safeai.kya.policy import PolicyError, load_profile
 
 _POLICY_PROFILES = ("developer", "strict-ci", "mcp", "rag", "production-agent")
 
@@ -103,11 +98,13 @@ def _build_parser():
                       help="Discover MCP configs in IDE scopes (.cursor/, .windsurf/, "
                            ".vscode/) in addition to the scanned repo")
 
-    init = sub.add_parser("init", help="Initialize SafeAI configuration in the current directory")
+    init = sub.add_parser("init", help="Scaffold a .safeai/ configuration directory")
     init.add_argument("--force", action="store_true",
-                      help="Overwrite existing SafeAI configuration files")
-    init.add_argument("--profile", choices=_POLICY_PROFILES, default="developer",
-                      help="Built-in policy profile to use (default: developer)")
+                      help="Overwrite existing .safeai/ files without prompting")
+    init.add_argument("--profile",
+                      choices=_POLICY_PROFILES,
+                      default="developer",
+                      help="Policy profile to scaffold (default: developer)")
 
     registry = sub.add_parser("registry", help="Inspect the local KYA registry")
     reg_sub = registry.add_subparsers(dest="registry_command")
@@ -132,17 +129,13 @@ def _build_parser():
     _common(reg_hist)
     reg_hist.add_argument("agent_id")
 
-    reg_components = reg_sub.add_parser("components", help="List known registry components")
-    reg_components.add_argument("--registry", help="Registry database path")
-    reg_components.add_argument("--project-dir", dest="project_dir",
-                                help="Inspect the per-project registry at DIR/.safeai/registry.db")
-    reg_components.add_argument("--format", choices=["table", "json"], default="table")
-    reg_components.add_argument("--json", dest="json_output", action="store_true",
-                                help="Emit JSON output")
-    reg_components.add_argument("--type", dest="component_type",
-                                help="Filter by component type (for example: mcp, skill, prompt)")
-    reg_components.add_argument("--agents", action="store_true",
-                                help="Show agents that reference each component")
+    reg_comp = reg_sub.add_parser("components", help="List tracked components and their consumers")
+    _common(reg_comp)
+    reg_comp.add_argument("--type", dest="component_type",
+                          choices=["skill", "prompt", "tool", "model_config", "workflow", "mcp"],
+                          help="Filter by component type")
+    reg_comp.add_argument("--agents", action="store_true",
+                          help="Show which agents reference each component")
 
     reg_diff = reg_sub.add_parser("diff", help="Compare two snapshots of an agent")
     _common(reg_diff)
@@ -186,77 +179,6 @@ def _run_scan_command(args, parser):
     outputs, exit code); this keeps the CLI a thin parsing shell.
     """
     return ScanPostProcessor(args, parser).run()
-
-
-def _agent_name(root):
-    """Derive a readable agent name from the git remote or directory."""
-    try:
-        result = subprocess.run(
-            ["git", "config", "--get", "remote.origin.url"],
-            cwd=root,
-            capture_output=True,
-            check=False,
-            text=True,
-            timeout=5,
-        )
-        remote = result.stdout.strip().rstrip("/")
-        if remote:
-            name = re.split(r"[/:]", remote)[-1].removesuffix(".git")
-            if name:
-                return name
-    except (OSError, subprocess.SubprocessError):
-        pass
-    return os.path.basename(os.path.abspath(root)) or "agent"
-
-
-def _run_init(args, root=None):
-    """Create a starter ``.safeai`` configuration without losing user files."""
-    root = os.path.abspath(root or os.getcwd())
-    config_dir = os.path.join(root, ".safeai")
-    try:
-        profile = load_profile(args.profile)
-        if profile is None:
-            raise PolicyError(f"Unknown policy profile: {args.profile}")
-
-        files = {
-            "config.yml": yaml.safe_dump(
-                {
-                    "agent_name": _agent_name(root),
-                    "environment": "development",
-                    "lifecycle": "active",
-                },
-                sort_keys=False,
-            ),
-            "policy.yml": yaml.safe_dump(profile, sort_keys=False),
-            "suppressions.yml": (
-                "# Add reviewed findings here using their stable fingerprints.\n"
-                "# Include a reason, owner, and creation date for each suppression.\n"
-                "suppressions: []\n"
-            ),
-        }
-
-        os.makedirs(config_dir, exist_ok=True)
-        written = []
-        skipped = []
-        for filename, content in files.items():
-            path = os.path.join(config_dir, filename)
-            if os.path.exists(path) and not args.force:
-                skipped.append(filename)
-                continue
-            with open(path, "w", encoding="utf-8", newline="\n") as fh:
-                fh.write(content)
-            written.append(filename)
-    except (OSError, PolicyError, yaml.YAMLError) as exc:
-        print(f"Unable to initialize SafeAI: {exc}", file=sys.stderr)
-        return 2
-
-    for filename in written:
-        print(f"Created .safeai/{filename}")
-    for filename in skipped:
-        print(f"Skipped existing .safeai/{filename} (use --force to overwrite)")
-    print("SafeAI configuration is ready.")
-    print("Next: safeai scan .")
-    return 0
 
 
 def _configure_stdout():
@@ -345,6 +267,139 @@ def _run_welcome():
     print("=" * 60)
     print("  Run 'safeai scan .' to get started!")
     print("=" * 60)
+    return 0
+
+
+def _run_init(args):
+    """Scaffold a ``.safeai/`` configuration directory.
+
+    Creates:
+      * ``.safeai/config.yml`` — project identity and defaults
+      * ``.safeai/policy.yml`` — selected policy profile
+      * ``.safeai/suppressions.yml`` — empty suppressions file with format hint
+      * ``.safeai/rules/`` — custom rules directory with example rule
+
+    Idempotent by default: existing files are skipped. ``--force`` overwrites.
+    """
+    import yaml
+
+    from safeai.kya.identity import load_local_config, save_local_config
+
+    root = os.getcwd()
+    safeai_dir = os.path.join(root, ".safeai")
+    force = getattr(args, "force", False)
+    profile_name = getattr(args, "profile", "developer") or "developer"
+
+    created = []
+    skipped = []
+    overwritten = []
+
+    os.makedirs(safeai_dir, exist_ok=True)
+
+    # --- .safeai/config.yml ---
+    config_path = os.path.join(safeai_dir, "config.yml")
+    existing_config = load_local_config(root)
+    if os.path.exists(config_path) and not force:
+        skipped.append("config.yml")
+    else:
+        agent_name = os.path.basename(root) or "my-agent"
+        config = {
+            "project_id": existing_config.get("project_id"),
+            "local_project_uuid": existing_config.get("local_project_uuid"),
+            "agent_name": agent_name,
+            "environment": "development",
+            "lifecycle_status": "active",
+        }
+        save_local_config(root, config)
+        if os.path.exists(config_path) and force:
+            overwritten.append("config.yml")
+        else:
+            created.append("config.yml")
+
+    # --- .safeai/policy.yml ---
+    policy_path = os.path.join(safeai_dir, "policy.yml")
+    if os.path.exists(policy_path) and not force:
+        skipped.append("policy.yml")
+    else:
+        from safeai.kya.policy import load_profile
+
+        profile = load_profile(profile_name)
+        if profile is not None:
+            with open(policy_path, "w", encoding="utf-8") as fh:
+                yaml.safe_dump(profile, fh, sort_keys=True, default_flow_style=False)
+            if os.path.exists(policy_path) and force:
+                overwritten.append("policy.yml")
+            else:
+                created.append("policy.yml")
+
+    # --- .safeai/suppressions.yml ---
+    suppressions_path = os.path.join(safeai_dir, "suppressions.yml")
+    if os.path.exists(suppressions_path) and not force:
+        skipped.append("suppressions.yml")
+    else:
+        suppressions_content = (
+            "# SafeAI suppressions — see USER_GUIDE.md for format.\n"
+            "# Add entries here to suppress known findings:\n"
+            "#\n"
+            "# - rule_id: PROMPT_INJECTION\n"
+            "#   file: tests/test_data.py\n"
+            "#   reason: Test fixture, not deployed code\n"
+            "#   owner: your-name\n"
+            "suppressions: []\n"
+        )
+        with open(suppressions_path, "w", encoding="utf-8") as fh:
+            fh.write(suppressions_content)
+        if os.path.exists(suppressions_path) and force:
+            overwritten.append("suppressions.yml")
+        else:
+            created.append("suppressions.yml")
+
+    # --- .safeai/rules/ directory with example rule ---
+    rules_dir = os.path.join(safeai_dir, "rules")
+    rules_yaml = os.path.join(rules_dir, "example_rules.yaml")
+    if os.path.exists(rules_yaml) and not force:
+        skipped.append("rules/example_rules.yaml")
+    else:
+        os.makedirs(rules_dir, exist_ok=True)
+        example_rule = (
+            "# Custom SafeAI rules — see DEVELOPER_GUIDE.md for format.\n"
+            "# Add your own rules here. They override built-in rules with the same ID.\n"
+            "#\n"
+            "# Example rule:\n"
+            "# - id: CUSTOM_NO_HARDCODED_SECRETS\n"
+            "#   description: Detect hardcoded secret values in agent configs\n"
+            "#   severity: high\n"
+            "#   owasp_llm: LLM06\n"
+            "[]\n"
+        )
+        with open(rules_yaml, "w", encoding="utf-8") as fh:
+            fh.write(example_rule)
+        if os.path.exists(rules_yaml) and force:
+            overwritten.append("rules/example_rules.yaml")
+        else:
+            created.append("rules/example_rules.yaml")
+
+    # --- Summary ---
+    print("SafeAI project initialized.")
+    print()
+    if created:
+        print("  Created:")
+        for f in created:
+            print(f"    .safeai/{f}")
+    if overwritten:
+        print("  Overwritten:")
+        for f in overwritten:
+            print(f"    .safeai/{f}")
+    if skipped:
+        print("  Skipped (already exists, use --force to overwrite):")
+        for f in skipped:
+            print(f"    .safeai/{f}")
+    print()
+    print("Next steps:")
+    print(f"  1. Review .safeai/config.yml (agent name: {os.path.basename(root) or 'my-agent'})")
+    print(f"  2. Review .safeai/policy.yml (profile: {profile_name})")
+    print("  3. Add custom rules to .safeai/rules/")
+    print("  4. Run: safeai scan .")
     return 0
 
 

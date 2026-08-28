@@ -18,15 +18,14 @@ from safeai.kya.registry import (
     default_registry_path,
     get_agent,
     get_agent_scan_findings,
-    get_component_agents,
     get_snapshot,
     get_tool_snapshots,
     list_agents,
-    list_components,
     registry_exists,
     resolve_scan_ref,
     shared_registry_path,
 )
+from safeai.kya.registry.queries import get_component_agents, list_components_deduped
 
 
 def _open_registry(path):
@@ -185,68 +184,6 @@ def cmd_history(args):
     return 0
 
 
-def _latest_components(components):
-    """Return the latest snapshot for each component identity."""
-    latest = {}
-    for component in components:
-        key = (component.get("component_type"), component.get("file_path"))
-        previous = latest.get(key)
-        if previous is None or component.get("id", 0) > previous.get("id", 0):
-            latest[key] = component
-    return sorted(
-        latest.values(),
-        key=lambda item: (
-            item.get("component_type") or "",
-            item.get("name") or "",
-            item.get("file_path") or "",
-        ),
-    )
-
-
-def cmd_components(args):
-    """List component snapshots and their consuming agents."""
-    conn = _open_registry(args.registry_path)
-    try:
-        components = _latest_components(
-            list_components(conn, component_type=getattr(args, "component_type", None)),
-        )
-        if getattr(args, "agents", False):
-            for component in components:
-                component["agents"] = get_component_agents(
-                    conn,
-                    component["component_type"],
-                    component["file_path"],
-                )
-    finally:
-        conn.close()
-
-    if getattr(args, "json_output", False) or args.format == "json":
-        _print_json({"components": components, "disclaimer": STATIC_ANALYSIS_DISCLAIMER})
-        return 0
-
-    print(f"Known components ({len(components)}) - static evidence only")
-    grouped = {}
-    for component in components:
-        grouped.setdefault(component.get("component_type") or "unknown", []).append(component)
-    for component_type, items in grouped.items():
-        print(f"\n[{component_type}]")
-        rows = []
-        for component in items:
-            agents = component.get("agents") or []
-            rows.append((
-                component.get("name") or "-",
-                component.get("file_path") or "-",
-                component.get("first_seen_scan") or "-",
-                component.get("last_seen_scan") or "-",
-                ", ".join(agent["agent_id"] for agent in agents) or "-",
-            ))
-        headers = ["NAME", "PATH", "FIRST SEEN", "LAST SEEN"]
-        if getattr(args, "agents", False):
-            headers.append("AGENTS")
-        _table([row if getattr(args, "agents", False) else row[:-1] for row in rows], headers)
-    return 0
-
-
 def _index_capabilities(snapshot):
     return {
         str(c.get("name", "")).lower(): c.get("category", "Capability")
@@ -396,6 +333,98 @@ def cmd_export(args):
     return 0
 
 
+def cmd_components(args):
+    """List tracked components and optionally their consuming agents."""
+    conn = _open_registry(args.registry_path)
+    try:
+        components = list_components_deduped(
+            conn, component_type=getattr(args, "component_type", None)
+        )
+        show_agents = getattr(args, "agents", False)
+        agent_map = {}
+        if show_agents:
+            for comp in components:
+                agents = get_component_agents(
+                    conn, comp["component_type"], comp["file_path"]
+                )
+                agent_map[(comp["component_type"], comp["file_path"])] = agents
+    finally:
+        conn.close()
+
+    if args.format == "json":
+        result = []
+        for comp in components:
+            entry = {
+                "type": comp["component_type"],
+                "name": comp.get("name"),
+                "path": comp["file_path"],
+                "source": comp.get("source"),
+                "content_hash": comp.get("content_hash"),
+                "first_seen": comp.get("first_seen_scan"),
+                "last_seen": comp.get("last_seen_scan"),
+                "scan_count": comp.get("scan_count", 0),
+            }
+            if show_agents:
+                key = (comp["component_type"], comp["file_path"])
+                entry["agents"] = [
+                    {
+                        "agent_id": a.get("agent_id"),
+                        "name": a.get("name"),
+                        "framework": a.get("framework"),
+                        "project_id": a.get("project_id"),
+                    }
+                    for a in agent_map.get(key, [])
+                ]
+            result.append(entry)
+        _print_json({"components": result, "disclaimer": STATIC_ANALYSIS_DISCLAIMER})
+        return 0
+
+    if not components:
+        print("No components tracked in registry.")
+        print(f"Note: {STATIC_ANALYSIS_DISCLAIMER}")
+        return 0
+
+    if show_agents:
+        rows = []
+        for comp in components:
+            key = (comp["component_type"], comp["file_path"])
+            agents = agent_map.get(key, [])
+            agent_list = ", ".join(
+                f"{a.get('name') or a.get('agent_id')}" for a in agents
+            ) or "-"
+            chash = (comp.get("content_hash") or "-")[:12]
+            rows.append((
+                comp["component_type"],
+                (comp.get("name") or "-")[:30],
+                comp["file_path"],
+                chash,
+                comp.get("first_seen_scan", "-")[:8],
+                comp.get("last_seen_scan", "-")[:8],
+                comp.get("scan_count", 0),
+                agent_list[:50],
+            ))
+        print(f"Components ({len(rows)}) - with consuming agents")
+        _table(rows, ["TYPE", "NAME", "PATH", "HASH", "FIRST", "LAST", "SCANS", "AGENTS"])
+    else:
+        rows = [
+            (
+                comp["component_type"],
+                (comp.get("name") or "-")[:30],
+                comp["file_path"],
+                (comp.get("content_hash") or "-")[:12],
+                comp.get("first_seen_scan", "-")[:8],
+                comp.get("last_seen_scan", "-")[:8],
+                comp.get("scan_count", 0),
+            )
+            for comp in components
+        ]
+        print(f"Components ({len(rows)}) - static evidence only")
+        _table(rows, ["TYPE", "NAME", "PATH", "HASH", "FIRST", "LAST", "SCANS"])
+
+    print(f"Note: {STATIC_ANALYSIS_DISCLAIMER}")
+    return 0
+
+
 def cmd_metadata(args):
     conn = _open_registry(args.registry_path)
     try:
@@ -464,8 +493,8 @@ def run_registry_command(args):
             "history": cmd_history,
             "diff": cmd_diff,
             "export": cmd_export,
-            "metadata": cmd_metadata,
             "components": cmd_components,
+            "metadata": cmd_metadata,
         }[args.registry_command]
         return handler(args)
     except RegistryError as exc:

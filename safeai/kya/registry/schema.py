@@ -196,6 +196,15 @@ CREATE TABLE IF NOT EXISTS agent_metadata (
 );
 """
 
+# --- Migration 5 (v1.9): component content hash ----------------------------
+#
+# Adds a ``content_hash`` column to ``component_snapshots`` for accurate
+# change detection: when a component's file content changes, its hash changes
+# and the component is flagged as changed in component diffs.
+_SCHEMA_V5 = """
+ALTER TABLE component_snapshots ADD COLUMN content_hash TEXT;
+"""
+
 #: Forward-only migrations, applied in ascending order. Migrations are
 #: additive: no migration drops, rewrites, or reorders an existing row.
 _MIGRATIONS = {
@@ -203,4 +212,5 @@ _MIGRATIONS = {
     2: _SCHEMA_V2,
     3: _SCHEMA_V3,
     4: _SCHEMA_V4,
+    5: _SCHEMA_V5,
 }

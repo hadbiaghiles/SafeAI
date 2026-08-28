@@ -294,7 +294,7 @@ class ScanOrchestrator:
             self.directory, skipped=self.skipped_files, excluded_paths=self.excluded_paths
         )
         logger.info("Collected %d scannable files in %s", len(self.files), self.directory)
-        self.rules = load_rules(self.rules_dir)
+        self.rules, _ = load_rules(self.rules_dir, scan_root=self.directory)
         self.dependencies = extract_dependencies(collect_dependency_files(self.directory))
         self.parsers = discover_parsers()
 

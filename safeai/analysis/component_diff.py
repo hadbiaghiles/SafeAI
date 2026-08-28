@@ -89,7 +89,16 @@ def _summarize(comp):
 
 
 def _has_changed(prev, curr):
-    """Check if a component has changed between scans."""
+    """Check if a component has changed between scans.
+
+    Uses content_hash for fast, accurate comparison when available.
+    Falls back to data serialization comparison for backward compat.
+    """
+    prev_hash = prev.get("content_hash")
+    curr_hash = curr.get("content_hash")
+    if prev_hash and curr_hash:
+        return prev_hash != curr_hash
+
     prev_name = prev.get("name") or ""
     curr_name = curr.get("name") or ""
     if prev_name != curr_name:

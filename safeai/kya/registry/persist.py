@@ -364,8 +364,9 @@ def persist_scan(conn, manifest):
 def _persist_components(conn, manifest, scan_id):
     """Persist component snapshots from the manifest into the registry.
 
-    Components are stored in the ``component_snapshots`` table (schema v3)
-    with first_seen/last_seen tracking for freshness queries.
+    Components are stored in the ``component_snapshots`` table (schema v3+)
+    with first_seen/last_seen tracking for freshness queries and
+    content_hash for accurate change detection.
     """
     components = manifest.get("components") or []
     if not components:
@@ -373,10 +374,10 @@ def _persist_components(conn, manifest, scan_id):
 
     existing = {}
     for row in conn.execute(
-        "SELECT component_type, file_path, last_seen_scan FROM component_snapshots"
+        "SELECT component_type, file_path, last_seen_scan, content_hash FROM component_snapshots"
     ).fetchall():
         key = (row["component_type"], row["file_path"])
-        existing[key] = row["last_seen_scan"]
+        existing[key] = (row["last_seen_scan"], row["content_hash"])
 
     for comp in components:
         comp_type = comp.get("type") or "unknown"
@@ -385,14 +386,16 @@ def _persist_components(conn, manifest, scan_id):
         comp_subtype = comp.get("subtype") or ""
         comp_source = comp.get("source") or ""
         comp_line = comp.get("line")
+        comp_hash = comp.get("content_hash")
         data_json = json.dumps(comp, sort_keys=True, default=str)
         key = (comp_type, comp_path)
-        first_seen = existing.get(key) or scan_id
+        prev = existing.get(key)
+        first_seen = prev[0] if prev else scan_id
         conn.execute(
             "INSERT OR REPLACE INTO component_snapshots("
             "scan_id, component_type, component_subtype, name, file_path, "
-            "source, line, data_json, first_seen_scan, last_seen_scan"
-            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "source, line, data_json, first_seen_scan, last_seen_scan, content_hash"
+            ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 scan_id,
                 comp_type,
@@ -404,6 +407,7 @@ def _persist_components(conn, manifest, scan_id):
                 data_json,
                 first_seen,
                 scan_id,
+                comp_hash,
             ),
         )
 

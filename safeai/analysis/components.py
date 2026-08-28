@@ -20,6 +20,7 @@ import re
 import yaml
 
 from safeai.analysis.semantic import _literal_value, _name_of, build_semantic_document
+from safeai.kya.util import sha256_text
 
 # ---------------------------------------------------------------------------
 # Detection patterns
@@ -309,6 +310,22 @@ def _extract_workflow_templates(path, content):
 
 
 # ---------------------------------------------------------------------------
+# Content hashing
+# ---------------------------------------------------------------------------
+
+def _component_content_hash(content):
+    """Return a truncated SHA-256 hash of file content for version tracking.
+
+    The hash is deterministic: same content always produces the same hash.
+    Truncated to 16 hex chars (64 bits) for compactness — collision risk is
+    acceptable for local change detection, not cryptographic use.
+    """
+    if not content:
+        return None
+    return sha256_text(content)[:16]
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -325,7 +342,7 @@ def extract_components(files, file_cache, semantic_docs=None, diagnostics=None):
     """Scan all files and return a list of component dicts.
 
     Each dict has at least:
-        type, subtype, file, source
+        type, subtype, file, source, content_hash
 
     Additional keys depend on the component type.
     """
@@ -338,12 +355,15 @@ def extract_components(files, file_cache, semantic_docs=None, diagnostics=None):
         if not content:
             continue
         sem_doc = semantic_docs.get(path)
+        chash = _component_content_hash(content)
         for extractor in _EXTRACTORS:
             try:
                 if extractor is _extract_tool_definitions:
                     found = extractor(path, content, semantic_doc=sem_doc)
                 else:
                     found = extractor(path, content)
+                for comp in found:
+                    comp["content_hash"] = chash
                 components.extend(found)
             except Exception as exc:
                 if diagnostics is not None:

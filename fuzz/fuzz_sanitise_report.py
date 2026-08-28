@@ -11,7 +11,7 @@ import atheris
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "community-scans" / "scripts"))
 
-from sanitise_report import sanitise_report  # noqa: E402
+from sanitise_report import sanitise_report
 
 
 def test_one_input(data: bytes) -> None:

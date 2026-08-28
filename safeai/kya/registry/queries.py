@@ -285,7 +285,7 @@ def list_components(conn, scan_id=None, component_type=None):
     """List component snapshots, optionally filtered by scan_id or type.
 
     Returns a list of dicts with component metadata including freshness
-    indicators (first_seen_scan, last_seen_scan).
+    indicators (first_seen_scan, last_seen_scan) and content_hash.
     """
     conditions = []
     params = []
@@ -310,6 +310,30 @@ def list_components(conn, scan_id=None, component_type=None):
                 comp["data"] = {}
         components.append(comp)
     return components
+
+
+def list_components_deduped(conn, component_type=None):
+    """List unique components (deduped by type+path), showing latest scan info.
+
+    Returns a list of dicts with: component_type, name, file_path, source,
+    content_hash, first_seen_scan, last_seen_scan, scan_count.
+    """
+    conditions = []
+    params = []
+    if component_type:
+        conditions.append("component_type = ?")
+        params.append(component_type)
+    where = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+    rows = conn.execute(
+        f"SELECT component_type, name, file_path, source, content_hash, "
+        f"first_seen_scan, last_seen_scan, "
+        f"COUNT(DISTINCT scan_id) as scan_count "
+        f"FROM component_snapshots{where} "
+        f"GROUP BY component_type, file_path "
+        f"ORDER BY component_type, name, file_path",
+        params,
+    ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def component_history(conn, component_type, file_path):

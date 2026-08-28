@@ -107,6 +107,10 @@ def build_manifest(report, *, project, scan_meta, safeai_meta, agents,
             "version": safeai_meta.get("version"),
             "ruleset_version": safeai_meta.get("ruleset_version"),
             "config_hash": safeai_meta.get("config_hash"),
+            "custom_rules_dir": safeai_meta.get("custom_rules_dir"),
+            "custom_rules_count": safeai_meta.get("custom_rules_count", 0),
+            "builtin_rules_count": safeai_meta.get("builtin_rules_count", 0),
+            "rule_pack_ids": safeai_meta.get("rule_pack_ids", []),
         },
         "project": {
             "project_id": project.get("project_id"),
@@ -137,6 +141,7 @@ def build_manifest(report, *, project, scan_meta, safeai_meta, agents,
                 "type": c.get("type", "unknown"),
                 "name": c.get("name"),
                 "path": normalize_path(c.get("file")),
+                "content_hash": c.get("content_hash"),
             }
             for c in (report.get("components") or [])
         ],

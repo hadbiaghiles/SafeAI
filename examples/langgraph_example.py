@@ -1,5 +1,6 @@
 from langgraph import Graph
 
+
 def node_a(state):
     return state
 
