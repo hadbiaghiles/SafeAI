@@ -32,7 +32,11 @@ class LangGraphParser:
         for imported in list(doc.imports.values()) + [v.rsplit(".", 1)[0] for v in doc.from_imports.values()]:
             if imported.startswith("langgraph"):
                 return True
-        return "langgraph" in content.lower() or "StateGraph" in content or "Graph(" in content
+        # Conservative keyword signals requiring actual usage: import-based
+        # detection is primary; the fallback requires a direct StateGraph
+        # instantiation rather than a bare substring to avoid false positives
+        # on unrelated uses (e.g. networkx.Graph).
+        return re.search(r"\bStateGraph\s*\(", content) is not None
 
     def parse(self, path, content, scan_ctx=None):
         module_name = ""

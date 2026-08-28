@@ -39,23 +39,17 @@ _RATE_LIMIT_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Tool-level kwargs detection patterns
-_TOOL_TIMEOUT_RE = re.compile(r"timeout", re.IGNORECASE)
-_TOOL_RETRY_RE = re.compile(r"retry|retries|backoff", re.IGNORECASE)
-
-
-def _find_governance_controls(content):
+def _find_governance_controls(content, near_line=None, window=10):
     """Scan file content for governance control patterns.
 
-    Returns a dict of control name -> list of line numbers where detected.
+    When ``near_line`` is provided only lines within ``window`` lines of
+    that position are checked.  This scopes the search to the tool's own
+    definition region and avoids masking missing controls in other tools
+    in the same module.
+
+    Returns a set of control names found in the scanned region.
     """
-    controls = {
-        "timeout": [],
-        "retry": [],
-        "approval": [],
-        "audit": [],
-        "rate_limit": [],
-    }
+    controls = set()
 
     patterns = {
         "timeout": _TIMEOUT_RE,
@@ -66,9 +60,11 @@ def _find_governance_controls(content):
     }
 
     for i, line in enumerate(content.splitlines(), 1):
+        if near_line is not None and (i < near_line - window or i > near_line + window):
+            continue
         for name, pattern in patterns.items():
             if pattern.search(line):
-                controls[name].append(i)
+                controls.add(name)
 
     return controls
 
@@ -137,15 +133,21 @@ class GovernanceAnalyzer:
             data = model.get("data", {})
             tools = data.get("tools") or []
             content = (file_cache or {}).get(path, "") if path else ""
-            # Source-level confirmation: if the tool's own module already
-            # declares the control, treat it as present (reduces false positives
-            # where the control lives in code but wasn't surfaced in tool kwargs).
-            source_controls = _find_governance_controls(content) if content else {}
 
             for tool in tools:
                 if not isinstance(tool, dict):
                     continue
                 tool_name = tool.get("name") or tool.get("tool_name") or "unknown"
+                tool_line = tool.get("line", 1)
+                # Source-level confirmation scoped to the tool's definition
+                # region: if the module declares the control near this tool,
+                # treat it as present (reduces false positives where the
+                # control lives elsewhere in the module).
+                source_controls = (
+                    _find_governance_controls(content, near_line=tool_line)
+                    if content
+                    else set()
+                )
 
                 for control in ["timeout", "retry", "approval", "audit", "rate_limit"]:
                     if _tool_has_control(tool, control):

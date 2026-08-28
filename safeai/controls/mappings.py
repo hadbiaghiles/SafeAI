@@ -67,6 +67,18 @@ RULE_MAPPINGS = {
         ("owasp_llm", "LLM06"),
         ("owasp_agentic", "AGENTIC02"),
     ],
+    "CAP_browser_playwright": [
+        ("owasp_llm", "LLM06"),
+        ("owasp_agentic", "AGENTIC02"),
+    ],
+    "CAP_browser_selenium": [
+        ("owasp_llm", "LLM06"),
+        ("owasp_agentic", "AGENTIC02"),
+    ],
+    "CAP_browser_use": [
+        ("owasp_llm", "LLM06"),
+        ("owasp_agentic", "AGENTIC02"),
+    ],
     "CAP_gcp": [
         ("owasp_llm", "LLM06"),
         ("owasp_agentic", "AGENTIC07"),

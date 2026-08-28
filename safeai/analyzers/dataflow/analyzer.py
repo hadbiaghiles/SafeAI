@@ -33,7 +33,6 @@ SINK_PATTERNS = {
 
 # Variable assignment patterns for tracking propagation
 ASSIGNMENT_RE = re.compile(r"(\w+)\s*=\s*(\w+)")
-FUNCTION_PARAM_RE = re.compile(r"def\s+\w+\s*\(([^)]+)\)")
 
 
 def _find_sources(content):

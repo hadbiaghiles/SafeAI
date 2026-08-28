@@ -113,7 +113,7 @@ OWASP_AGENTIC = {
         "id": "AGENTIC04",
         "family": "Autonomous Goal Drift",
         "title": "Autonomous Goal Drift",
-        "description": "Agent pursues goals偏离 from original intent through self-modification.",
+        "description": "Agent pursues goals that deviate from original intent through self-modification.",
     },
     "AGENTIC05": {
         "framework": "owasp_agentic",
