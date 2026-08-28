@@ -29,7 +29,13 @@ class AutoGenParser:
         for imported in list(doc.imports.values()) + [v.rsplit(".", 1)[0] for v in doc.from_imports.values()]:
             if imported.startswith("autogen"):
                 return True
-        return "autogen" in content.lower() or "AssistantAgent" in content or "UserProxyAgent" in content
+        # Conservative keyword signals requiring actual usage, not a bare
+        # substring: an agent class instantiation or a tool-registration
+        # decorator/method. This avoids reporting modules that merely mention
+        # "autogen" in a comment, docstring, or unrelated identifier.
+        if re.search(r"\b(?:AssistantAgent|UserProxyAgent)\s*\(", content):
+            return True
+        return "register_for_llm" in content or "register_function" in content
 
     def parse(self, path, content, scan_ctx=None):
         module_name = ""
@@ -102,6 +108,12 @@ class AutoGenParser:
         if not tools:
             tool_patterns = re.findall(r"register_for_llm\(([^)]+)\)|register_function\(([^)]+)\)", content)
             tools = [{"name": a or b, "evidence": a or b} for a, b in tool_patterns if (a or b)]
+
+        # Only report AutoGen when we actually found an agent or a registered
+        # tool. A module that imports the package but never instantiates an
+        # agent should not be advertised as an AutoGen project.
+        if not agents and not tools:
+            return None
 
         return {
             "framework": "autogen",

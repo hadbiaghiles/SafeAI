@@ -105,12 +105,14 @@ class TestDataFlowAnalyzer:
         findings = analyzer.run({"app.py": content}, [])
         assert findings == []
 
-    def test_finding_has_high_severity(self):
+    def test_finding_has_elevated_severity(self):
         analyzer = self._make_analyzer()
         content = "user_input = input()\nos.system(user_input)"
         findings = analyzer.run({"app.py": content}, [])
+        # Severity is derived from the rule registry: shell sinks are critical,
+        # other sinks may differ. All data-flow findings are elevated.
         for f in findings:
-            assert f["severity"] == "high"
+            assert f["severity"] in ("high", "critical")
 
     def test_finding_has_safety_category(self):
         analyzer = self._make_analyzer()

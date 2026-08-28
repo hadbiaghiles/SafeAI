@@ -90,22 +90,28 @@ def _tool_has_control(tool_data, control_name):
     return False
 
 
-def _finding(rule_id, message, path, line, tool_name=None, evidence=None):
-    """Create a governance finding dict."""
+def _finding(rule_id, rule, message, path, line, tool_name=None, evidence=None, control=None):
+    """Create a governance finding dict, deriving severity/owasp from the rule."""
+    sev = rule.get("severity", "medium")
+    owasp = rule.get("owasp_llm", "LLM05")
+    if control:
+        remediation = rule.get("remediation") or f"Add {control} configuration to this tool."
+    else:
+        remediation = rule.get("remediation") or "Add the missing governance control to this tool."
     return {
         "rule_id": rule_id,
-        "severity": "medium",
+        "severity": sev,
         "message": message,
         "file": path,
         "line": line,
-        "owasp_llm": "LLM05",
+        "owasp_llm": owasp,
         "evidence": evidence or message,
         "reason": f"Missing governance control on agent tool: {tool_name or 'unknown'}",
         "risk_category": "Governance",
         "affected_framework": "generic",
         "affected_capability": "Governance",
-        "score_contribution": 8,
-        "remediation": f"Add {rule_id.replace('GOV_', '').lower().replace('_missing', '')} configuration to this tool.",
+        "score_contribution": int(rule.get("score_contribution", 8)),
+        "remediation": remediation,
     }
 
 
@@ -120,13 +126,21 @@ class GovernanceAnalyzer:
 
     def run(self, file_cache, rules, agent_models=None, components=None):
         findings = []
+        rule_map = {r.get("id"): r for r in (rules or [])}
         seen = set()
 
-        # Phase 1: Check tool-level governance controls from agent_models
+        # Phase 1: Check tool-level governance controls from agent_models.
+        # Dedup per (file, tool, control) so every real tool gap is reported
+        # rather than collapsing to a single finding per control.
         for model in agent_models or []:
             path = model.get("file")
             data = model.get("data", {})
             tools = data.get("tools") or []
+            content = (file_cache or {}).get(path, "") if path else ""
+            # Source-level confirmation: if the tool's own module already
+            # declares the control, treat it as present (reduces false positives
+            # where the control lives in code but wasn't surfaced in tool kwargs).
+            source_controls = _find_governance_controls(content) if content else {}
 
             for tool in tools:
                 if not isinstance(tool, dict):
@@ -136,19 +150,25 @@ class GovernanceAnalyzer:
                 for control in ["timeout", "retry", "approval", "audit", "rate_limit"]:
                     if _tool_has_control(tool, control):
                         continue
+                    if control in source_controls:
+                        continue
 
                     rule_id = f"GOV_{control.upper()}_MISSING"
-                    if rule_id in seen:
+                    key = (path, tool_name, rule_id)
+                    if key in seen:
                         continue
-                    seen.add(rule_id)
+                    seen.add(key)
 
+                    rule = rule_map.get(rule_id, {})
                     findings.append(_finding(
                         rule_id=rule_id,
+                        rule=rule,
                         message=f"Tool '{tool_name}' missing {control} configuration",
                         path=path,
                         line=tool.get("line", 1),
                         tool_name=tool_name,
                         evidence=f"tool={tool_name} missing={control}",
+                        control=control,
                     ))
 
         return findings

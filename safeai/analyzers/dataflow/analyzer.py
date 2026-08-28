@@ -123,22 +123,24 @@ def _track_propagation(content, sources, sinks):
     return findings
 
 
-def _finding(rule_id, message, path, line, evidence=None):
-    """Create a data-flow finding dict."""
+def _finding(rule_id, rule, message, path, line, evidence=None):
+    """Create a data-flow finding dict, deriving severity/owasp from the rule."""
     return {
         "rule_id": rule_id,
-        "severity": "high",
+        "severity": rule.get("severity", "high"),
         "message": message,
         "file": path,
         "line": line,
-        "owasp_llm": "LLM01",
+        "owasp_llm": rule.get("owasp_llm", "LLM01"),
         "evidence": evidence or message,
         "reason": "Untrusted input propagates into sensitive sink",
         "risk_category": "Safety",
         "affected_framework": "generic",
         "affected_capability": "Data Flow",
-        "score_contribution": 15,
-        "remediation": "Sanitize untrusted input before use in prompts, tool calls, or shell commands.",
+        "score_contribution": int(rule.get("score_contribution", 15)),
+        "remediation": rule.get("remediation") or (
+            "Sanitize untrusted input before use in prompts, tool calls, or shell commands."
+        ),
     }
 
 
@@ -154,9 +156,15 @@ class DataFlowAnalyzer:
 
     def run(self, file_cache, rules, agent_models=None, components=None):
         findings = []
+        rule_map = {r.get("id"): r for r in (rules or [])}
         seen = set()
 
-        for path, content in file_cache.items():
+        for path, content in (file_cache or {}).items():
+            # Only analyze Python sources: the sink/source patterns are
+            # language-specific and would otherwise false-positive on JSON/YAML
+            # config files that merely contain keys like "prompt" or "request".
+            if not path.endswith(".py"):
+                continue
             if not content:
                 continue
 
@@ -175,8 +183,10 @@ class DataFlowAnalyzer:
                 seen.add(key)
 
                 rule_id = f"DATAFLOW_{prop['sink_type'].upper()}"
+                rule = rule_map.get(rule_id, {})
                 findings.append(_finding(
                     rule_id=rule_id,
+                    rule=rule,
                     message=f"Untrusted input '{prop['source_var']}' flows into {prop['sink_type']} at line {prop['sink_line']}",
                     path=path,
                     line=prop["sink_line"],

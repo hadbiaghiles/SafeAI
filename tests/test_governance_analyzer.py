@@ -118,6 +118,24 @@ class TestGovernanceAnalyzer:
         }]
         findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
         rule_ids = [f["rule_id"] for f in findings]
+        # Each distinct tool missing timeout yields its own finding (no
+        # cross-tool collapse), so two tools produce two findings.
+        assert rule_ids.count("GOV_TIMEOUT_MISSING") == 2
+
+    def test_same_tool_not_duplicated(self):
+        analyzer = self._make_analyzer()
+        agent_models = [{
+            "file": "agent.py",
+            "data": {
+                "tools": [
+                    {"name": "tool1"},
+                    {"name": "tool1"},
+                ],
+            },
+        }]
+        findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
+        rule_ids = [f["rule_id"] for f in findings]
+        # The same tool declared twice collapses to a single finding.
         assert rule_ids.count("GOV_TIMEOUT_MISSING") == 1
 
     def test_multiple_models(self):

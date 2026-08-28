@@ -366,6 +366,8 @@ class ScanOrchestrator:
             for parser in self.parsers:
                 if parser.detect(path, content, scan_ctx=self.scan_ctx):
                     parsed = parser.parse(path, content, scan_ctx=self.scan_ctx)
+                    if parsed is None:
+                        continue
                     framework = parsed.get("framework")
                     if not framework:
                         continue
