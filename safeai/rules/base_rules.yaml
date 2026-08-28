@@ -302,3 +302,30 @@
   description: Tool implemented but not declared in any skill, workflow, or MCP configuration
   severity: low
   owasp_llm: LLM06
+
+# --- Governance signal detection (WS3) ---
+
+- id: GOV_TIMEOUT_MISSING
+  description: Missing timeout configuration on agent tool
+  severity: medium
+  owasp_llm: LLM05
+
+- id: GOV_RETRY_MISSING
+  description: Missing retry/backoff configuration on agent tool
+  severity: medium
+  owasp_llm: LLM05
+
+- id: GOV_APPROVAL_MISSING
+  description: Missing human-in-the-loop approval workflow on agent tool
+  severity: medium
+  owasp_llm: LLM05
+
+- id: GOV_AUDIT_MISSING
+  description: Missing audit logging/tracing configuration on agent tool
+  severity: medium
+  owasp_llm: LLM05
+
+- id: GOV_RATE_LIMIT_MISSING
+  description: Missing rate limiting on external-facing agent tool
+  severity: medium
+  owasp_llm: LLM05
