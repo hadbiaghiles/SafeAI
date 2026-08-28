@@ -213,7 +213,22 @@
   owasp_llm: LLM06
 
 - id: CAP_browser
-  description: Browser automation capability detected
+  description: Browser automation capability
+  severity: medium
+  owasp_llm: LLM06
+
+- id: CAP_browser_playwright
+  description: Playwright browser automation capability
+  severity: medium
+  owasp_llm: LLM06
+
+- id: CAP_browser_selenium
+  description: Selenium browser automation capability
+  severity: medium
+  owasp_llm: LLM06
+
+- id: CAP_browser_use
+  description: browser_use AI agent capability
   severity: medium
   owasp_llm: LLM06
 
@@ -329,3 +344,35 @@
   description: Missing rate limiting on external-facing agent tool
   severity: medium
   owasp_llm: LLM05
+
+# --- Data-flow analysis (WS6) ---
+
+- id: DATAFLOW_prompt
+  description: Untrusted input flows into prompt construction
+  severity: high
+  owasp_llm: LLM01
+
+- id: DATAFLOW_tool_call
+  description: Untrusted input flows into tool invocation
+  severity: high
+  owasp_llm: LLM06
+
+- id: DATAFLOW_shell
+  description: Untrusted input flows into shell execution
+  severity: critical
+  owasp_llm: LLM06
+
+- id: DATAFLOW_file_write
+  description: Untrusted input flows into file write operation
+  severity: high
+  owasp_llm: LLM06
+
+- id: DATAFLOW_http_request
+  description: Untrusted input flows into HTTP request
+  severity: medium
+  owasp_llm: LLM06
+
+- id: DATAFLOW_database
+  description: Untrusted input flows into database query
+  severity: high
+  owasp_llm: LLM06

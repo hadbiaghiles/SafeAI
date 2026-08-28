@@ -420,6 +420,7 @@ class ScanOrchestrator:
             self.findings.extend(analyzer.run(self.file_cache, self.rules, self.agent_models))
 
         # --- Phase 1.5: component-level analyzers ---
+        from safeai.analyzers.dataflow.analyzer import DataFlowAnalyzer
         from safeai.analyzers.governance.analyzer import GovernanceAnalyzer
         from safeai.analyzers.model_config.analyzer import ModelConfigAnalyzer
         from safeai.analyzers.prompt_file.analyzer import PromptFileAnalyzer
@@ -434,6 +435,7 @@ class ScanOrchestrator:
             ModelConfigAnalyzer(),
             WorkflowAnalyzer(),
             GovernanceAnalyzer(),
+            DataFlowAnalyzer(),
         ]
         for analyzer in component_analyzers:
             self.findings.extend(

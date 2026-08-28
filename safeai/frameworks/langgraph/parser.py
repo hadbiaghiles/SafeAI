@@ -57,7 +57,7 @@ class LangGraphParser:
             resolved = resolve_symbol(doc, call["name"])
             origin = resolve_symbol_origin(doc, call["name"], import_graph=import_graph)
             lname = (resolved or call["name"]).lower()
-            if lname.endswith("add_edge"):
+            if lname.endswith(("add_edge", "add_conditional_edges")):
                 edges.append({"name": call["name"], "line": call.get("line"), "kwargs": call.get("kwargs", {}), "evidence": call["name"]})
                 workflows.append({"name": call["name"], "line": call.get("line"), "kwargs": call.get("kwargs", {}), "evidence": call["name"]})
                 planners.append({"name": call["name"], "line": call.get("line"), "evidence": call["name"]})
@@ -91,7 +91,8 @@ class LangGraphParser:
                 })
 
         if not edges:
-            edges = [{"name": x, "evidence": x} for x in re.findall(r"add_edge\(([^)]+)\)", content)]
+            edges = [{"name": x, "evidence": x} for x in re.findall(r"add_edge\(([^)]+)\)|add_conditional_edges\(([^)]+)\)", content)]
+            edges = [{"name": a or b, "evidence": a or b} for a, b in edges if (a or b)]
         if not tools:
             regex_tools = re.findall(r"bind_tools\(([^)]+)\)|tool\(([^)]+)\)", content)
             tools = [{"name": a or b, "evidence": a or b} for a, b in regex_tools if (a or b)]

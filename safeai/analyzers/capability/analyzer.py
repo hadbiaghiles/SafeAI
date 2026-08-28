@@ -22,7 +22,9 @@ CAP_PATTERNS = {
     "s3": re.compile(r"import boto3|from boto3|boto3\.client.*s3|boto3\.resource.*s3|S3Client|s3\.put|s3\.get", re.IGNORECASE),
     "slack": re.compile(r"import slack|from slack|SlackClient|slack_sdk|slack\.WebClient|slack\.SocketModeClient", re.IGNORECASE),
     "jira": re.compile(r"import jira|from jira|JIRA\(|jira\.Client|jira\.JIRA", re.IGNORECASE),
-    "browser": re.compile(r"import playwright|from playwright|Playwright|selenium|webdriver|puppeteer|from browser_use", re.IGNORECASE),
+    "browser_playwright": re.compile(r"import playwright|from playwright|Playwright", re.IGNORECASE),
+    "browser_selenium": re.compile(r"import selenium|from selenium|webdriver|WebDriver", re.IGNORECASE),
+    "browser_use": re.compile(r"from browser_use|import browser_use|browser_use\.Agent", re.IGNORECASE),
     "gcp": re.compile(r"import google\.cloud|from google\.cloud|google\.cloud\.\w+|GCP|gcsfs|BigQuery", re.IGNORECASE),
 }
 
@@ -42,7 +44,9 @@ RULE_BY_CAP = {
     "s3": "CAP_s3",
     "slack": "CAP_slack",
     "jira": "CAP_jira",
-    "browser": "CAP_browser",
+    "browser_playwright": "CAP_browser_playwright",
+    "browser_selenium": "CAP_browser_selenium",
+    "browser_use": "CAP_browser_use",
     "gcp": "CAP_gcp",
 }
 
@@ -58,7 +62,9 @@ CATEGORY_BY_CAP = {
     "s3": "Cloud",
     "slack": "Collaboration",
     "jira": "Collaboration",
-    "browser": "Browser",
+    "browser_playwright": "Browser",
+    "browser_selenium": "Browser",
+    "browser_use": "Browser",
     "gcp": "Cloud",
 }
 
