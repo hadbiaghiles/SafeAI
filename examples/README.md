@@ -20,6 +20,7 @@ examples/
     autogen/                # AutoGen-specific examples
     google-adk/             # Google ADK-specific examples
     n8n/                    # n8n workflow examples
+    github-actions/         # Synthetic fixture for the SafeAI Actions example
 ```
 
 ---
@@ -71,6 +72,10 @@ examples/
 - Agent with memory
 - Agent with external API calls
 - Agent with filesystem access
+
+### `github-actions/`
+- A deterministic, side-effect-free LangGraph-style agent
+- A copyable workflow that scans the fixture and uploads SARIF output
 
 ---
 
