@@ -293,7 +293,7 @@ it:
   env_dependency, mcp, model_config, prompt, prompt_file, skill, tool_def,
   workflow — emitting the `CAP_*`, `CC_*`, `DATA_*`, `DEP_*`, `ENV_*`, `MCP_*`,
   `MODEL_*`, `PROMPT_*`, `PROMPT_FILE_*`, `SKILL_*`, `TOOL_*`, `WORKFLOW_*`
-  rule families (57 built-in rules in `safeai/rules/base_rules.yaml`).
+  rule families (73 built-in rules in `safeai/rules/base_rules.yaml`).
 - **Analysis core** (`safeai/analysis/`): `semantic` (AST document + symbol
   resolution), `import_graph` (project-wide import/symbol graph), `project_graph`
   (cross-file entity aggregation), `aggregation` (multi-parser merge +

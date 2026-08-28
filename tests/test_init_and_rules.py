@@ -200,7 +200,7 @@ class TestRulePackManifest:
             "config_hash": "def456",
             "custom_rules_dir": "/tmp/rules",
             "custom_rules_count": 3,
-            "builtin_rules_count": 57,
+            "builtin_rules_count": 73,
             "rule_pack_ids": ["built-in:base_rules.yaml", "custom:my_rules.yml"],
         }
         manifest = build_manifest(
@@ -212,6 +212,6 @@ class TestRulePackManifest:
             agents=[],
         )
         assert manifest["safeai"]["custom_rules_count"] == 3
-        assert manifest["safeai"]["builtin_rules_count"] == 57
+        assert manifest["safeai"]["builtin_rules_count"] == 73
         assert "custom:my_rules.yml" in manifest["safeai"]["rule_pack_ids"]
         assert manifest["safeai"]["custom_rules_dir"] == "/tmp/rules"
