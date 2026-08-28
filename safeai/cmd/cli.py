@@ -117,6 +117,18 @@ def _build_parser():
     _common(reg_hist)
     reg_hist.add_argument("agent_id")
 
+    reg_components = reg_sub.add_parser("components", help="List known registry components")
+    reg_components.add_argument("--registry", help="Registry database path")
+    reg_components.add_argument("--project-dir", dest="project_dir",
+                                help="Inspect the per-project registry at DIR/.safeai/registry.db")
+    reg_components.add_argument("--format", choices=["table", "json"], default="table")
+    reg_components.add_argument("--json", dest="json_output", action="store_true",
+                                help="Emit JSON output")
+    reg_components.add_argument("--type", dest="component_type",
+                                help="Filter by component type (for example: mcp, skill, prompt)")
+    reg_components.add_argument("--agents", action="store_true",
+                                help="Show agents that reference each component")
+
     reg_diff = reg_sub.add_parser("diff", help="Compare two snapshots of an agent")
     _common(reg_diff)
     reg_diff.add_argument("agent_id")
@@ -260,7 +272,10 @@ def main(argv=None):
 
     if args.command == "registry":
         if not getattr(args, "registry_command", None):
-            parser.error("registry requires a subcommand: list|show|history|diff|export|metadata")
+            parser.error(
+                "registry requires a subcommand: "
+                "list|show|history|components|diff|export|metadata",
+            )
         from safeai.cmd.registry_cli import run_registry_command
         return run_registry_command(args)
 
