@@ -9,6 +9,7 @@ Usage::
                             [--pr-comment <path>] [--pr-comment-stdout]
                             [--fail-on <level>] [--fail-on-new]
                             [--fail-on-escalation <level>]
+    safeai init [--profile <name>] [--force]
     safeai registry list|show|history|diff|export ...
 
 KYA (Know Your Agent) behavior:
@@ -27,9 +28,17 @@ KYA (Know Your Agent) behavior:
 """
 
 import argparse
+import os
+import re
+import subprocess
 import sys
 
+import yaml
+
 from safeai.cmd.postprocess import ScanPostProcessor
+from safeai.kya.policy import PolicyError, load_profile
+
+_POLICY_PROFILES = ("developer", "strict-ci", "mcp", "rag", "production-agent")
 
 
 def _build_parser():
@@ -93,6 +102,12 @@ def _build_parser():
     scan.add_argument("--mcp-ide-scopes", action="store_true",
                       help="Discover MCP configs in IDE scopes (.cursor/, .windsurf/, "
                            ".vscode/) in addition to the scanned repo")
+
+    init = sub.add_parser("init", help="Initialize SafeAI configuration in the current directory")
+    init.add_argument("--force", action="store_true",
+                      help="Overwrite existing SafeAI configuration files")
+    init.add_argument("--profile", choices=_POLICY_PROFILES, default="developer",
+                      help="Built-in policy profile to use (default: developer)")
 
     registry = sub.add_parser("registry", help="Inspect the local KYA registry")
     reg_sub = registry.add_subparsers(dest="registry_command")
@@ -171,6 +186,77 @@ def _run_scan_command(args, parser):
     outputs, exit code); this keeps the CLI a thin parsing shell.
     """
     return ScanPostProcessor(args, parser).run()
+
+
+def _agent_name(root):
+    """Derive a readable agent name from the git remote or directory."""
+    try:
+        result = subprocess.run(
+            ["git", "config", "--get", "remote.origin.url"],
+            cwd=root,
+            capture_output=True,
+            check=False,
+            text=True,
+            timeout=5,
+        )
+        remote = result.stdout.strip().rstrip("/")
+        if remote:
+            name = re.split(r"[/:]", remote)[-1].removesuffix(".git")
+            if name:
+                return name
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return os.path.basename(os.path.abspath(root)) or "agent"
+
+
+def _run_init(args, root=None):
+    """Create a starter ``.safeai`` configuration without losing user files."""
+    root = os.path.abspath(root or os.getcwd())
+    config_dir = os.path.join(root, ".safeai")
+    try:
+        profile = load_profile(args.profile)
+        if profile is None:
+            raise PolicyError(f"Unknown policy profile: {args.profile}")
+
+        files = {
+            "config.yml": yaml.safe_dump(
+                {
+                    "agent_name": _agent_name(root),
+                    "environment": "development",
+                    "lifecycle": "active",
+                },
+                sort_keys=False,
+            ),
+            "policy.yml": yaml.safe_dump(profile, sort_keys=False),
+            "suppressions.yml": (
+                "# Add reviewed findings here using their stable fingerprints.\n"
+                "# Include a reason, owner, and creation date for each suppression.\n"
+                "suppressions: []\n"
+            ),
+        }
+
+        os.makedirs(config_dir, exist_ok=True)
+        written = []
+        skipped = []
+        for filename, content in files.items():
+            path = os.path.join(config_dir, filename)
+            if os.path.exists(path) and not args.force:
+                skipped.append(filename)
+                continue
+            with open(path, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(content)
+            written.append(filename)
+    except (OSError, PolicyError, yaml.YAMLError) as exc:
+        print(f"Unable to initialize SafeAI: {exc}", file=sys.stderr)
+        return 2
+
+    for filename in written:
+        print(f"Created .safeai/{filename}")
+    for filename in skipped:
+        print(f"Skipped existing .safeai/{filename} (use --force to overwrite)")
+    print("SafeAI configuration is ready.")
+    print("Next: safeai scan .")
+    return 0
 
 
 def _configure_stdout():
@@ -269,6 +355,9 @@ def main(argv=None):
 
     if args.command == "scan":
         return _run_scan_command(args, parser)
+
+    if args.command == "init":
+        return _run_init(args)
 
     if args.command == "registry":
         if not getattr(args, "registry_command", None):
