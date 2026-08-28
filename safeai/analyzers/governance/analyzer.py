@@ -129,6 +129,8 @@ class GovernanceAnalyzer:
             tools = data.get("tools") or []
 
             for tool in tools:
+                if not isinstance(tool, dict):
+                    continue
                 tool_name = tool.get("name") or tool.get("tool_name") or "unknown"
 
                 for control in ["timeout", "retry", "approval", "audit", "rate_limit"]:
@@ -148,24 +150,5 @@ class GovernanceAnalyzer:
                         tool_name=tool_name,
                         evidence=f"tool={tool_name} missing={control}",
                     ))
-
-        # Phase 2: Check source files for governance control patterns
-        for path, content in file_cache.items():
-            if not content:
-                continue
-            controls = _find_governance_controls(content)
-
-            for control, lines in controls.items():
-                if not lines:
-                    rule_id = f"GOV_{control.upper()}_MISSING"
-                    if rule_id not in seen:
-                        seen.add(rule_id)
-                        findings.append(_finding(
-                            rule_id=rule_id,
-                            message=f"No {control} configuration detected in source",
-                            path=path,
-                            line=1,
-                            evidence=f"file={path} missing={control}",
-                        ))
 
         return findings

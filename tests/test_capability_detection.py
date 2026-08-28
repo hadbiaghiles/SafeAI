@@ -10,7 +10,9 @@ def _run_analyzer(code, rules=None):
         {"id": "CAP_s3", "severity": "medium", "owasp_llm": "LLM06"},
         {"id": "CAP_slack", "severity": "medium", "owasp_llm": "LLM06"},
         {"id": "CAP_jira", "severity": "low", "owasp_llm": "LLM06"},
-        {"id": "CAP_browser", "severity": "medium", "owasp_llm": "LLM06"},
+        {"id": "CAP_browser_playwright", "severity": "medium", "owasp_llm": "LLM06"},
+        {"id": "CAP_browser_selenium", "severity": "medium", "owasp_llm": "LLM06"},
+        {"id": "CAP_browser_use", "severity": "medium", "owasp_llm": "LLM06"},
         {"id": "CAP_gcp", "severity": "medium", "owasp_llm": "LLM06"},
     ]
     analyzer = CapabilityAnalyzer()
@@ -79,17 +81,17 @@ def test_jira_client():
 
 def test_browser_playwright():
     findings = _run_analyzer("from playwright.sync_api import sync_playwright\n")
-    assert any(f["rule_id"] == "CAP_browser" for f in findings)
+    assert any(f["rule_id"] == "CAP_browser_playwright" for f in findings)
 
 
 def test_browser_selenium():
     findings = _run_analyzer("from selenium import webdriver\n")
-    assert any(f["rule_id"] == "CAP_browser" for f in findings)
+    assert any(f["rule_id"] == "CAP_browser_selenium" for f in findings)
 
 
 def test_browser_use():
     findings = _run_analyzer("from browser_use import Agent\n")
-    assert any(f["rule_id"] == "CAP_browser" for f in findings)
+    assert any(f["rule_id"] == "CAP_browser_use" for f in findings)
 
 
 def test_gcp_cloud():

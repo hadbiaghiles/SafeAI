@@ -440,7 +440,7 @@ def test_wheel_contains_package_data(tmp_path):
         dist_infos = [n for n in names if n.endswith("METADATA")]
         meta = zf.read(dist_infos[0]).decode("utf-8")
         assert "Name: SafeAI-Static-Analyzer" in meta
-        assert "Version: 1.5.0" in meta
+        assert "Version: 1.8.0" in meta
 
 
 def test_local_integration_script_present():

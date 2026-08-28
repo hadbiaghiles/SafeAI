@@ -15,73 +15,16 @@ class TestGovernanceAnalyzer:
             {"id": "GOV_RATE_LIMIT_MISSING", "severity": "medium", "owasp_llm": "LLM05"},
         ]
 
-    def test_empty_file_cache_no_tools(self):
+    def test_empty_no_findings(self):
         analyzer = self._make_analyzer()
         findings = analyzer.run({}, self._default_rules())
-        assert isinstance(findings, list)
+        assert findings == []
 
-    def test_source_missing_timeout(self):
+    def test_no_tools_no_findings(self):
         analyzer = self._make_analyzer()
-        findings = analyzer.run(
-            {"agent.py": "import os\nprint('hello')\n"},
-            self._default_rules(),
-        )
-        rule_ids = [f["rule_id"] for f in findings]
-        assert "GOV_TIMEOUT_MISSING" in rule_ids
-
-    def test_source_missing_retry(self):
-        analyzer = self._make_analyzer()
-        findings = analyzer.run(
-            {"agent.py": "import os\n"},
-            self._default_rules(),
-        )
-        rule_ids = [f["rule_id"] for f in findings]
-        assert "GOV_RETRY_MISSING" in rule_ids
-
-    def test_source_missing_approval(self):
-        analyzer = self._make_analyzer()
-        findings = analyzer.run(
-            {"agent.py": "import os\n"},
-            self._default_rules(),
-        )
-        rule_ids = [f["rule_id"] for f in findings]
-        assert "GOV_APPROVAL_MISSING" in rule_ids
-
-    def test_source_missing_audit(self):
-        analyzer = self._make_analyzer()
-        findings = analyzer.run(
-            {"agent.py": "import os\n"},
-            self._default_rules(),
-        )
-        rule_ids = [f["rule_id"] for f in findings]
-        assert "GOV_AUDIT_MISSING" in rule_ids
-
-    def test_source_missing_rate_limit(self):
-        analyzer = self._make_analyzer()
-        findings = analyzer.run(
-            {"agent.py": "import os\n"},
-            self._default_rules(),
-        )
-        rule_ids = [f["rule_id"] for f in findings]
-        assert "GOV_RATE_LIMIT_MISSING" in rule_ids
-
-    def test_source_with_timeout_no_finding(self):
-        analyzer = self._make_analyzer()
-        findings = analyzer.run(
-            {"agent.py": "timeout = 30\n"},
-            self._default_rules(),
-        )
-        rule_ids = [f["rule_id"] for f in findings]
-        assert "GOV_TIMEOUT_MISSING" not in rule_ids
-
-    def test_source_with_retry_no_finding(self):
-        analyzer = self._make_analyzer()
-        findings = analyzer.run(
-            {"agent.py": "retry = 3\n"},
-            self._default_rules(),
-        )
-        rule_ids = [f["rule_id"] for f in findings]
-        assert "GOV_RETRY_MISSING" not in rule_ids
+        agent_models = [{"file": "agent.py", "data": {}}]
+        findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
+        assert findings == []
 
     def test_tool_missing_timeout(self):
         analyzer = self._make_analyzer()
@@ -94,6 +37,18 @@ class TestGovernanceAnalyzer:
         findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
         rule_ids = [f["rule_id"] for f in findings]
         assert "GOV_TIMEOUT_MISSING" in rule_ids
+
+    def test_tool_missing_all_controls(self):
+        analyzer = self._make_analyzer()
+        agent_models = [{
+            "file": "agent.py",
+            "data": {
+                "tools": [{"name": "bare_tool", "line": 5}],
+            },
+        }]
+        findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
+        rule_ids = [f["rule_id"] for f in findings]
+        assert len(rule_ids) == 5
 
     def test_tool_with_timeout_no_finding(self):
         analyzer = self._make_analyzer()
@@ -119,48 +74,58 @@ class TestGovernanceAnalyzer:
         rule_ids = [f["rule_id"] for f in findings]
         assert "GOV_RETRY_MISSING" not in rule_ids
 
+    def test_string_tool_entry_skipped(self):
+        analyzer = self._make_analyzer()
+        agent_models = [{
+            "file": "agent.py",
+            "data": {
+                "tools": ["not_a_dict"],
+            },
+        }]
+        findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
+        assert findings == []
+
     def test_finding_has_governance_risk_category(self):
         analyzer = self._make_analyzer()
-        findings = analyzer.run(
-            {"agent.py": "import os\n"},
-            self._default_rules(),
-        )
+        agent_models = [{
+            "file": "agent.py",
+            "data": {"tools": [{"name": "tool1"}]},
+        }]
+        findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
         for f in findings:
             assert f["risk_category"] == "Governance"
 
     def test_finding_has_medium_severity(self):
         analyzer = self._make_analyzer()
-        findings = analyzer.run(
-            {"agent.py": "import os\n"},
-            self._default_rules(),
-        )
+        agent_models = [{
+            "file": "agent.py",
+            "data": {"tools": [{"name": "tool1"}]},
+        }]
+        findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
         for f in findings:
             assert f["severity"] == "medium"
 
     def test_deduplicates_findings(self):
         analyzer = self._make_analyzer()
-        findings = analyzer.run(
-            {"a.py": "import os\n", "b.py": "import os\n"},
-            self._default_rules(),
-        )
+        agent_models = [{
+            "file": "agent.py",
+            "data": {
+                "tools": [
+                    {"name": "tool1"},
+                    {"name": "tool2"},
+                ],
+            },
+        }]
+        findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
         rule_ids = [f["rule_id"] for f in findings]
         assert rule_ids.count("GOV_TIMEOUT_MISSING") == 1
 
-    def test_none_content_skipped(self):
+    def test_multiple_models(self):
         analyzer = self._make_analyzer()
-        findings = analyzer.run(
-            {"agent.py": None},
-            self._default_rules(),
-        )
-        assert isinstance(findings, list)
-
-    def test_multiple_controls_detected(self):
-        analyzer = self._make_analyzer()
-        findings = analyzer.run(
-            {"agent.py": "timeout = 30\n"},
-            self._default_rules(),
-        )
+        agent_models = [
+            {"file": "a.py", "data": {"tools": [{"name": "t1"}]}},
+            {"file": "b.py", "data": {"tools": [{"name": "t2", "kwargs": {"timeout": 10}}]}},
+        ]
+        findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
         rule_ids = [f["rule_id"] for f in findings]
-        assert "GOV_TIMEOUT_MISSING" not in rule_ids
-        assert "GOV_RETRY_MISSING" in rule_ids
-        assert "GOV_APPROVAL_MISSING" in rule_ids
+        assert "GOV_TIMEOUT_MISSING" in rule_ids
