@@ -1,7 +1,5 @@
 """Tests for WS3: GovernanceAnalyzer — timeout, retry, approval, audit, rate-limit detection."""
 
-import pytest
-
 
 class TestGovernanceAnalyzer:
     def _make_analyzer(self):

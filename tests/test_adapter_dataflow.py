@@ -1,7 +1,5 @@
 """Tests for WS5 (Adapter Completion) and WS6 (Heuristic Data-Flow Depth)."""
 
-import pytest
-
 
 class TestAutoGenAdapter:
     def test_detects_autogen_import(self):

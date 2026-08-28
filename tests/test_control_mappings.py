@@ -1,7 +1,5 @@
 """Tests for WS4: Control Mappings — OWASP LLM, OWASP Agentic, NIST AI RMF."""
 
-import pytest
-
 
 class TestControlCatalogs:
     def test_owasp_llm_has_10_controls(self):

@@ -1,11 +1,8 @@
 """Tests for WS2: safeai init, custom rule scaffold, and per-scan rule-pack tracking."""
 
-import json
 import os
 
-import pytest
 import yaml
-
 
 # ---------------------------------------------------------------------------
 # safeai init
@@ -157,7 +154,7 @@ class TestRuleLoader:
         (rules_dir / "bad_sev.yml").write_text(
             "- id: BAD_SEV\n  description: Test\n  severity: invalid\n"
         )
-        rules, meta = load_rules(custom_dir=str(rules_dir))
+        rules, _meta = load_rules(custom_dir=str(rules_dir))
         ids = [r["id"] for r in rules if r.get("id") == "BAD_SEV"]
         assert len(ids) == 0
 
@@ -176,7 +173,7 @@ class TestRuleLoader:
 
         rules_dir = tmp_path / "rules"
         rules_dir.mkdir()
-        rules, meta = load_rules(custom_dir=str(rules_dir))
+        _rules, meta = load_rules(custom_dir=str(rules_dir))
         assert meta["custom_rules_count"] == 0
         assert meta["builtin_rules_count"] > 0
 

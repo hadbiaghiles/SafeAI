@@ -2,11 +2,7 @@
 
 import json
 import os
-import sqlite3
 import tempfile
-
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Component content hashing
@@ -131,7 +127,6 @@ class TestRegistryComponentsCLI:
 
     def test_components_list(self, tmp_path):
         from safeai.cmd.registry_cli import cmd_components
-        from safeai.kya.registry.connection import connect
 
         db = self._make_registry(tmp_path)
 
