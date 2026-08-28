@@ -18,9 +18,11 @@ from safeai.kya.registry import (
     default_registry_path,
     get_agent,
     get_agent_scan_findings,
+    get_component_agents,
     get_snapshot,
     get_tool_snapshots,
     list_agents,
+    list_components,
     registry_exists,
     resolve_scan_ref,
     shared_registry_path,
@@ -180,6 +182,68 @@ def cmd_history(args):
     ]
     print(f"History for agent {args.agent_id} ({len(rows)} scans)")
     _table(rows, ["SCAN", "COMPLETED", "COMMIT", "POLICY", "RISK", "CAPS", "SEVERITIES"])
+    return 0
+
+
+def _latest_components(components):
+    """Return the latest snapshot for each component identity."""
+    latest = {}
+    for component in components:
+        key = (component.get("component_type"), component.get("file_path"))
+        previous = latest.get(key)
+        if previous is None or component.get("id", 0) > previous.get("id", 0):
+            latest[key] = component
+    return sorted(
+        latest.values(),
+        key=lambda item: (
+            item.get("component_type") or "",
+            item.get("name") or "",
+            item.get("file_path") or "",
+        ),
+    )
+
+
+def cmd_components(args):
+    """List component snapshots and their consuming agents."""
+    conn = _open_registry(args.registry_path)
+    try:
+        components = _latest_components(
+            list_components(conn, component_type=getattr(args, "component_type", None)),
+        )
+        if getattr(args, "agents", False):
+            for component in components:
+                component["agents"] = get_component_agents(
+                    conn,
+                    component["component_type"],
+                    component["file_path"],
+                )
+    finally:
+        conn.close()
+
+    if getattr(args, "json_output", False) or args.format == "json":
+        _print_json({"components": components, "disclaimer": STATIC_ANALYSIS_DISCLAIMER})
+        return 0
+
+    print(f"Known components ({len(components)}) - static evidence only")
+    grouped = {}
+    for component in components:
+        grouped.setdefault(component.get("component_type") or "unknown", []).append(component)
+    for component_type, items in grouped.items():
+        print(f"\n[{component_type}]")
+        rows = []
+        for component in items:
+            agents = component.get("agents") or []
+            rows.append((
+                component.get("name") or "-",
+                component.get("file_path") or "-",
+                component.get("first_seen_scan") or "-",
+                component.get("last_seen_scan") or "-",
+                ", ".join(agent["agent_id"] for agent in agents) or "-",
+            ))
+        headers = ["NAME", "PATH", "FIRST SEEN", "LAST SEEN"]
+        if getattr(args, "agents", False):
+            headers.append("AGENTS")
+        _table([row if getattr(args, "agents", False) else row[:-1] for row in rows], headers)
     return 0
 
 
@@ -401,6 +465,7 @@ def run_registry_command(args):
             "diff": cmd_diff,
             "export": cmd_export,
             "metadata": cmd_metadata,
+            "components": cmd_components,
         }[args.registry_command]
         return handler(args)
     except RegistryError as exc:
