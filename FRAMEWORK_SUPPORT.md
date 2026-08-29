@@ -40,6 +40,7 @@ we deliberately do not overclaim coverage.
 | LlamaIndex | AST + imports | Agents, tools, indexes, models | RAG, databases, external APIs | Minimal | Experimental |
 | Dify | YAML/JSON + references | Workflows, agents, tools, models | Shell, databases, external APIs | Minimal | Experimental |
 | n8n | Workflow JSON + references | Workflows, nodes, connections | Shell, databases, email, external APIs | Minimal | Experimental |
+| AutoGen | ✔️ | Partial | Minimal | Minimal | Experimental |
 
 ---
 
