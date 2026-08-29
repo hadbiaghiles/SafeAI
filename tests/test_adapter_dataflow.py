@@ -20,6 +20,12 @@ class TestAutoGenAdapter:
         content = "import os"
         assert parser.detect("agent.py", content) is False
 
+    def test_ignores_autogen_mention_in_comment(self):
+        from safeai.frameworks.autogen.parser import AutoGenParser
+        parser = AutoGenParser()
+        content = "# migrate this autogen example later"
+        assert parser.detect("agent.py", content) is False
+
     def test_parses_assistant_agent(self):
         from safeai.frameworks.autogen.parser import AutoGenParser
         parser = AutoGenParser()
@@ -43,6 +49,12 @@ class TestLangGraphConditionalEdges:
         content = "from langgraph.graph import StateGraph\ngraph.add_conditional_edges('start', route_fn)"
         assert parser.detect("graph.py", content) is True
 
+    def test_ignores_unrelated_graph_library(self):
+        from safeai.frameworks.langgraph.parser import LangGraphParser
+        parser = LangGraphParser()
+        content = "import networkx\ngraph = networkx.Graph()"
+        assert parser.detect("graph.py", content) is False
+
     def test_parses_conditional_edges(self):
         from safeai.frameworks.langgraph.parser import LangGraphParser
         parser = LangGraphParser()
@@ -57,6 +69,11 @@ class TestBrowserRuleSplit:
         from safeai.analyzers.capability.analyzer import CAP_PATTERNS
         content = "from playwright import sync_api"
         assert CAP_PATTERNS["browser_playwright"].search(content)
+
+    def test_selenium_does_not_match_playwright(self):
+        from safeai.analyzers.capability.analyzer import CAP_PATTERNS
+        content = "from selenium import webdriver"
+        assert not CAP_PATTERNS["browser_playwright"].search(content)
 
     def test_selenium_detected(self):
         from safeai.analyzers.capability.analyzer import CAP_PATTERNS
