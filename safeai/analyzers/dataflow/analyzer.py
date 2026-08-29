@@ -34,6 +34,13 @@ SINK_PATTERNS = {
 # Variable assignment patterns for tracking propagation
 ASSIGNMENT_RE = re.compile(r"(\w+)\s*=\s*(\w+)")
 
+# Variable prefixes that indicate test fixtures, examples, or placeholder data.
+# Sources matching these prefixes are skipped to reduce false positives.
+_PLACEHOLDER_PREFIXES = (
+    "test_", "example_", "dummy_", "mock_", "fake_", "sample_",
+    "fixture_", "stub_", "temp_", "tmp_",
+)
+
 
 def _find_sources(content):
     """Find untrusted input sources in file content."""
@@ -42,9 +49,14 @@ def _find_sources(content):
         for pattern in SOURCE_PATTERNS:
             match = pattern.search(line)
             if match:
+                var_name = match.group(0)
+                # Skip variables that look like test fixtures or placeholders
+                base = var_name.split(".")[0].split("(")[0].lower()
+                if any(base.startswith(p) for p in _PLACEHOLDER_PREFIXES):
+                    continue
                 sources.append({
                     "line": i,
-                    "variable": match.group(0),
+                    "variable": var_name,
                     "source_text": line.strip(),
                 })
     return sources
@@ -140,6 +152,13 @@ def _finding(rule_id, rule, message, path, line, evidence=None):
         "remediation": rule.get("remediation") or (
             "Sanitize untrusted input before use in prompts, tool calls, or shell commands."
         ),
+        "confidence": "heuristic",
+        "scope": "static-analysis",
+        "limitation": (
+            "Line-level proxy heuristic; not a full interprocedural data-flow "
+            "solver. May miss indirect propagation or produce false positives "
+            "on dynamic constructs."
+        ),
     }
 
 
@@ -186,7 +205,12 @@ class DataFlowAnalyzer:
                 findings.append(_finding(
                     rule_id=rule_id,
                     rule=rule,
-                    message=f"Untrusted input '{prop['source_var']}' flows into {prop['sink_type']} at line {prop['sink_line']}",
+                    message=(
+                        f"Observation: variable '{prop['source_var']}' (line "
+                        f"{prop['source_line']}) appears in {prop['sink_type']} "
+                        f"at line {prop['sink_line']} — heuristic propagation "
+                        f"(not verified at runtime)"
+                    ),
                     path=path,
                     line=prop["sink_line"],
                     evidence=f"source:{prop['source_var']}@L{prop['source_line']} -> sink:{prop['sink_type']}@L{prop['sink_line']}",

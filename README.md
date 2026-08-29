@@ -3,7 +3,7 @@
 [![CI](https://github.com/ikaruscareer/SafeAI/actions/workflows/ci.yml/badge.svg)](https://github.com/ikaruscareer/SafeAI/actions/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/ikaruscareer/SafeAI/badge)](https://scorecard.dev/viewer/?uri=github.com/ikaruscareer/SafeAI)
 [![Website](https://img.shields.io/badge/web-safeai--analyzer.ikaruscareer.com-0f766e)](https://safeai-analyzer.ikaruscareer.com)
-[![Latest Release](https://img.shields.io/badge/latest-v1.8.0-0f766e)](https://github.com/ikaruscareer/SafeAI/releases/tag/v1.8.0)
+[![Latest Release](https://img.shields.io/badge/latest-v1.9.0-0f766e)](https://github.com/ikaruscareer/SafeAI/releases/tag/v1.9.0)
 [![Best Practices](https://bestpractices.dev/projects/14126/badge)](https://www.bestpractices.dev/en/projects/14126)
 
 **SafeAI** is a static analysis tool that scans AI application source code for security risks, capability exposure, and governance gaps. It runs entirely offline, never executes agents or calls LLMs, and integrates into CI/CD pipelines.
@@ -55,11 +55,14 @@ SafeAI sits before runtime guardrails and red-teaming tools in the security life
 | **Capability Escalation Detection** | Per-tool authority diffs between scans (new shell, read→write widening, new MCP server, removed approval gate, ...) — 14 rules, including gating-aware subsumption |
 | **AI Risk Analysis** | Categorizes findings into 7 risk categories with weighted trust scoring (0–100) |
 | **Prompt Risk Analysis** | Detects injection patterns, delimiter issues, system leak, role override |
+| **Governance Signal Detection** | Detects missing operational controls: timeout, retry, approval, audit, rate limiting, circuit breaker, backpressure, health check (8 `GOV_*` rules) |
 | **Component-Level Analysis** | Skills, prompt files, tool definitions, model configurations, workflow templates |
+| **Data-Flow Analysis** | Tracks untrusted input propagation into sensitive sinks (prompts, tool calls, shell, file writes, HTTP, database); placeholder-aware confidence |
+| **Control Mappings** | OWASP LLM / Agentic + NIST AI RMF mapping layer for framework-based filtering and grouping |
 | **Deep Claude Code Analysis** | Structural analysis of `.claude/settings.json`, permissions, slash commands, subagents, hooks, `.mcp.json` |
 | **MCP Analysis** | Discovers MCP servers, clients, tools, resources, and validates configuration |
 | **Data Leakage Detection** | Flags hardcoded secrets, tokens, and API keys (redacted in all outputs) |
-| **KYA Shared Registry** | Append-only SQLite registry of scan-derived agent records, shared org-wide; `list`/`show`/`history`/`diff`/`export` |
+| **KYA Shared Registry** | Append-only SQLite registry of scan-derived agent records, shared org-wide; `list`/`show`/`history`/`diff`/`export`/`components` |
 | **Baseline & Escalation Gating** | `--fail-on-new` for new/regressed findings, `--fail-on-escalation` for authority changes, `--pr-comment` PR summaries |
 | **Policy-as-Code & Suppressions** | `allow`/`warn`/`require_review`/`deny` policy with selectors; required-reason suppressions |
 | **Assurance Boundary** | Every scan states exactly what it did and could not verify — never a fixed disclaimer |
@@ -701,8 +704,13 @@ See [ROADMAP.md](./ROADMAP.md) for the detailed roadmap.
   (`1.5.0`, classifier `5 - Production/Stable`), and a GitHub Actions
   **Marketplace action** (`action.yml` composite action plus a validated
   `scripts/safeai-action.py` driver and `action-test.yml` CI workflow).
-- **Next focus**: adapter depth improvements, governance signal detection,
-  richer dataflow/context precision, and optional enterprise-scale workflows.
+- **Completed in 1.9.0**: component version/hash in registry, `safeai init`,
+  governance signal detection (8 `GOV_*` rules including circuit breaker,
+  backpressure, health check), control mappings (OWASP LLM/Agentic + NIST
+  AI RMF), AutoGen + LangGraph adapter completion, heuristic data-flow
+  analysis with placeholder-aware confidence, browser automation rule split.
+- **Next focus**: adapter depth improvements, richer dataflow/context
+  precision, and optional enterprise-scale workflows.
 
 <img width="1024" height="1024" alt="SafeAI_Roadmap" src="https://github.com/user-attachments/assets/de21b305-9e17-4390-a745-e00f9427f8e4" />
 

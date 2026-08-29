@@ -11,6 +11,10 @@ References:
 - NIST AI Risk Management Framework 1.0 (NIST AI 100-1): https://www.nist.gov/itl/ai-risk-management-framework
 """
 
+OWASP_LLM_VERSION = "2025"
+OWASP_AGENTIC_VERSION = "2025"
+NIST_AI_RMF_VERSION = "1.0"
+
 # OWASP Top 10 for LLM Applications (2025)
 OWASP_LLM = {
     "LLM01": {

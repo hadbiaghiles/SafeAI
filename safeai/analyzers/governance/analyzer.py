@@ -38,6 +38,21 @@ _RATE_LIMIT_RE = re.compile(
     r"(?:\s*[=:]\s*|\s*\()",
     re.IGNORECASE,
 )
+_CIRCUIT_BREAKER_RE = re.compile(
+    r"\b(?:circuit_breaker|CircuitBreaker|breaker|circuit_break)"
+    r"(?:\s*[=:]\s*|\s*\()",
+    re.IGNORECASE,
+)
+_BACKPRESSURE_RE = re.compile(
+    r"\b(?:backpressure|back_pressure|queue_size|max_concurrent|max_workers)"
+    r"(?:\s*[=:]\s*|\s*\()",
+    re.IGNORECASE,
+)
+_HEALTH_CHECK_RE = re.compile(
+    r"\b(?:health_check|healthcheck|liveness|readiness|is_healthy)"
+    r"(?:\s*[=:]\s*|\s*\()",
+    re.IGNORECASE,
+)
 
 def _find_governance_controls(content, near_line=None, window=10):
     """Scan file content for governance control patterns.
@@ -57,6 +72,9 @@ def _find_governance_controls(content, near_line=None, window=10):
         "approval": _APPROVAL_RE,
         "audit": _AUDIT_RE,
         "rate_limit": _RATE_LIMIT_RE,
+        "circuit_breaker": _CIRCUIT_BREAKER_RE,
+        "backpressure": _BACKPRESSURE_RE,
+        "health_check": _HEALTH_CHECK_RE,
     }
 
     for i, line in enumerate(content.splitlines(), 1):
@@ -79,6 +97,9 @@ def _tool_has_control(tool_data, control_name):
             "approval": ["approval", "human_in_the_loop", "hitl", "confirm"],
             "audit": ["audit", "logging", "log_event", "trace"],
             "rate_limit": ["rate_limit", "throttle", "rate_per"],
+            "circuit_breaker": ["circuit_breaker", "breaker", "circuit_break"],
+            "backpressure": ["backpressure", "back_pressure", "queue_size", "max_concurrent", "max_workers"],
+            "health_check": ["health_check", "healthcheck", "liveness", "readiness", "is_healthy"],
         }
         for key in key_map.get(control_name, []):
             if key in kwargs:
@@ -108,6 +129,12 @@ def _finding(rule_id, rule, message, path, line, tool_name=None, evidence=None, 
         "affected_capability": "Governance",
         "score_contribution": int(rule.get("score_contribution", 8)),
         "remediation": remediation,
+        "confidence": "heuristic",
+        "scope": "static-analysis",
+        "limitation": (
+            "Source-level pattern matching only; no runtime verification of "
+            "whether the control is actually enforced."
+        ),
     }
 
 
@@ -149,7 +176,8 @@ class GovernanceAnalyzer:
                     else set()
                 )
 
-                for control in ["timeout", "retry", "approval", "audit", "rate_limit"]:
+                for control in ["timeout", "retry", "approval", "audit", "rate_limit",
+                                "circuit_breaker", "backpressure", "health_check"]:
                     if _tool_has_control(tool, control):
                         continue
                     if control in source_controls:
@@ -165,7 +193,11 @@ class GovernanceAnalyzer:
                     findings.append(_finding(
                         rule_id=rule_id,
                         rule=rule,
-                        message=f"Tool '{tool_name}' missing {control} configuration",
+                        message=(
+                            f"Observation: tool '{tool_name}' does not declare "
+                            f"{control} in source within ±10 lines of its definition "
+                            f"(not verified at runtime)"
+                        ),
                         path=path,
                         line=tool.get("line", 1),
                         tool_name=tool_name,

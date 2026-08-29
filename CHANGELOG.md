@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.9.0] - 2026-08-28
 
+**Curated theme — "Component Depth & Ecosystem Foundations."** Carries the
+remaining depth items not in v1.8.0: CE 1.6 component-record depth, CE 1.4/1.5
+governance and data-flow leftovers, and CE 2.0 ecosystem foundations.
+
 ### Added — Component version/hash (WS1)
 
 - Component `content_hash` (SHA-256, truncated to 16 chars) stored in the KYA
@@ -26,10 +30,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added — Governance signal detection (WS3)
 
 - `GovernanceAnalyzer` detects missing operational governance controls:
-  timeout, retry, approval (HITL), audit logging, rate limiting.
-- Five new rules: `GOV_TIMEOUT_MISSING`, `GOV_RETRY_MISSING`,
-  `GOV_APPROVAL_MISSING`, `GOV_AUDIT_MISSING`, `GOV_RATE_LIMIT_MISSING`.
+  timeout, retry, approval (HITL), audit logging, rate limiting, circuit breaker
+  pattern, backpressure/concurrency limits, and health check/readiness probes.
+- Eight rules: `GOV_TIMEOUT_MISSING`, `GOV_RETRY_MISSING`,
+  `GOV_APPROVAL_MISSING`, `GOV_AUDIT_MISSING`, `GOV_RATE_LIMIT_MISSING`,
+  `GOV_CIRCUIT_BREAKER_MISSING`, `GOV_BACKPRESSURE_MISSING`,
+  `GOV_HEALTH_CHECK_MISSING`.
 - Findings carry `risk_category: "Governance"` for scoring and reporting.
+- Per-tool deduplication: same tool missing the same control produces one finding.
+- Source-level confirmation scoped to tool definition ±10 lines to reduce
+  false positives from poly-tool modules.
 
 ### Added — Control mappings taxonomy (WS4)
 
@@ -43,7 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added — Adapter completion (WS5)
 
 - AutoGen framework adapter for Microsoft AutoGen multi-agent systems.
-- LangGraph parser now detects `add_conditional_edges()` calls.
+  Detection tightened: requires import, class usage, or `register_for_llm`/
+  `register_for_exec` — no bare substring match.
+- LangGraph parser now detects `add_conditional_edges()` calls; detection
+  tightened to require `StateGraph` — no loose `Graph(` match.
 - Browser automation rules split: `CAP_browser_playwright`,
   `CAP_browser_selenium`, `CAP_browser_use`.
 
@@ -53,6 +66,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (prompts, tool calls, shell, file writes, HTTP requests, database queries).
 - Six new rules: `DATAFLOW_prompt`, `DATAFLOW_tool_call`, `DATAFLOW_shell`,
   `DATAFLOW_file_write`, `DATAFLOW_http_request`, `DATAFLOW_database`.
+- Placeholder-aware confidence: variables starting with `test_`, `example_`,
+  `dummy_`, `mock_`, `fake_`, `sample_`, `fixture_`, `stub_`, `temp_`, `tmp_`
+  are skipped as likely test fixtures.
+- `.py`-only file filter eliminates false positives on JSON/YAML configs.
+
+### Fixes (post-review)
+
+- **Governance deduplication** — changed from per-rule-id to per-tool
+  `(path, tool_name, rule_id)` granularity; same tool not duplicated.
+- **AutoGen detection tightened** — removed loose `"autogen" in content.lower()`
+  substring match; now requires import, class usage, or registration pattern.
+- **LangGraph detection tightened** — removed loose `Graph(` match that
+  false-positived on `networkx.Graph`.
+- **DataFlow `.py`-only filter** — non-Python files (JSON, YAML configs) no
+  longer produce data-flow false positives.
+- **Governance source confirmation scoped** — `_find_governance_controls` now
+  checks only within ±10 lines of the tool definition, not the entire file.
+- **Orchestrator null guard** — `parse_frameworks` skips `None` returns from
+  framework parsers.
+- **Mojibake fixed** — removed CJK fragment from `AGENTIC04` description.
 
 ### Community contributors
 
@@ -217,47 +250,6 @@ and is the gate for starting CE 2.0.
 - **Heuristic wording** — prompt detectors use hedged language ("pattern detected",
   "may enable") to avoid overstating confidence; severity adjusted for
   `PROMPT_INDIRECT_INJECTION` (high→medium) and `PROMPT_XML_INJECTION` (medium→low).
-
-## [1.9.0] - Unreleased
-
-**Curated theme — "Component Depth & Ecosystem Foundations."** Carries the
-remaining depth items not in v1.8.0.
-
-### Planned — CE 1.6 component-record depth
-
-- **Component version/hash in the registry** — integrity columns on
-  `component_snapshots` (deferred from v1.7.0).
-- **Impact-query CLI** — `safeai registry components` (list + "which agents
-  reference this component?") on top of `get_component_agents`.
-- **Component findings depth** — component-level detection for unpinned references
-  and unsafe composition (currently only proxy heuristics).
-- **Component manifests / lockfile-style integrity** — a thin, lockfile-style
-  integrity view where feasible.
-
-### Planned — CE 1.4 / CE 1.5 leftovers
-
-- **Governance signal detection** (CE 1.4) — timeout, retry policy, approval
-  workflow, audit logging, rate limiting.
-- **Heuristic data-flow depth** (CE 1.5) — untrusted-input propagation into
-  prompts and tool arguments (line-level proxy heuristics exist today).
-
-### Planned — CE 2.0 ecosystem foundations
-
-- **`safeai init`** — scaffold config, local registry, recommended policy profile.
-- **Custom rule authoring scaffold** — fixtures, tests, expected-findings tooling
-  on top of the existing `--rules` directory loader.
-- **Control mappings** — OWASP Top 10 for Agentic / LLM Applications, NIST AI RMF
-  1.0 (taxonomy / prioritisation aid only, never a compliance claim).
-- **Portable registry import** — complement the existing `registry export`.
-- **Per-scan plugin / rule-pack versions** — record parser/plugin versions
-  alongside the already-recorded ruleset version.
-
-### Planned — Remote repository scanning
-
-- **GitHub and Bitbucket repo scanning** — scan remote repositories directly
-  without local checkout, supporting GitHub and Bitbucket as sources. Clone or
-  fetch the repo, scan it, and produce reports — enabling quick assessment of
-  third-party agents and frameworks.
 
 ## [1.6.0] - 2026-08-13
 

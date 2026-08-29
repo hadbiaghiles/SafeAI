@@ -345,6 +345,21 @@
   severity: medium
   owasp_llm: LLM05
 
+- id: GOV_CIRCUIT_BREAKER_MISSING
+  description: Missing circuit breaker pattern on agent tool
+  severity: medium
+  owasp_llm: LLM06
+
+- id: GOV_BACKPRESSURE_MISSING
+  description: Missing backpressure or concurrency limit on agent tool
+  severity: low
+  owasp_llm: LLM06
+
+- id: GOV_HEALTH_CHECK_MISSING
+  description: Missing health check or readiness probe on agent tool
+  severity: medium
+  owasp_llm: LLM06
+
 # --- Data-flow analysis (WS6) ---
 
 - id: DATAFLOW_prompt
