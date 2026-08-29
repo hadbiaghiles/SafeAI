@@ -121,6 +121,18 @@ RULE_MAPPINGS = {
         ("owasp_agentic", "AGENTIC08"),
         ("nist_ai_rmf", "MANAGE_1"),
     ],
+    "GOV_CIRCUIT_BREAKER_MISSING": [
+        ("owasp_agentic", "AGENTIC08"),
+        ("nist_ai_rmf", "MANAGE_1"),
+    ],
+    "GOV_BACKPRESSURE_MISSING": [
+        ("owasp_agentic", "AGENTIC08"),
+        ("nist_ai_rmf", "MANAGE_1"),
+    ],
+    "GOV_HEALTH_CHECK_MISSING": [
+        ("owasp_agentic", "AGENTIC10"),
+        ("nist_ai_rmf", "GOVERN_2"),
+    ],
     # Environment dependencies
     "ENV_DEP_INVENTORY": [
         ("owasp_llm", "LLM06"),
@@ -161,6 +173,32 @@ RULE_MAPPINGS = {
     "ESC_RECURRING_RISK": [
         ("owasp_llm", "LLM09"),
         ("nist_ai_rmf", "MANAGE_2"),
+    ],
+    # Data-flow analysis
+    "DATAFLOW_prompt": [
+        ("owasp_llm", "LLM01"),
+        ("owasp_agentic", "AGENTIC01"),
+    ],
+    "DATAFLOW_tool_call": [
+        ("owasp_llm", "LLM06"),
+        ("owasp_agentic", "AGENTIC02"),
+    ],
+    "DATAFLOW_shell": [
+        ("owasp_llm", "LLM06"),
+        ("owasp_agentic", "AGENTIC02"),
+        ("nist_ai_rmf", "MAP_5"),
+    ],
+    "DATAFLOW_file_write": [
+        ("owasp_llm", "LLM06"),
+        ("owasp_agentic", "AGENTIC02"),
+    ],
+    "DATAFLOW_http_request": [
+        ("owasp_llm", "LLM06"),
+        ("owasp_agentic", "AGENTIC02"),
+    ],
+    "DATAFLOW_database": [
+        ("owasp_llm", "LLM06"),
+        ("owasp_agentic", "AGENTIC02"),
     ],
 }
 

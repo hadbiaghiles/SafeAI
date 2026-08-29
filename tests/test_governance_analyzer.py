@@ -1,4 +1,4 @@
-"""Tests for WS3: GovernanceAnalyzer — timeout, retry, approval, audit, rate-limit detection."""
+"""Tests for WS3: GovernanceAnalyzer — timeout, retry, approval, audit, rate-limit, circuit-breaker, backpressure, health-check detection."""
 
 
 class TestGovernanceAnalyzer:
@@ -13,6 +13,9 @@ class TestGovernanceAnalyzer:
             {"id": "GOV_APPROVAL_MISSING", "severity": "medium", "owasp_llm": "LLM05"},
             {"id": "GOV_AUDIT_MISSING", "severity": "medium", "owasp_llm": "LLM05"},
             {"id": "GOV_RATE_LIMIT_MISSING", "severity": "medium", "owasp_llm": "LLM05"},
+            {"id": "GOV_CIRCUIT_BREAKER_MISSING", "severity": "medium", "owasp_llm": "LLM06"},
+            {"id": "GOV_BACKPRESSURE_MISSING", "severity": "low", "owasp_llm": "LLM06"},
+            {"id": "GOV_HEALTH_CHECK_MISSING", "severity": "medium", "owasp_llm": "LLM06"},
         ]
 
     def test_empty_no_findings(self):
@@ -48,7 +51,7 @@ class TestGovernanceAnalyzer:
         }]
         findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
         rule_ids = [f["rule_id"] for f in findings]
-        assert len(rule_ids) == 5
+        assert len(rule_ids) == 8
 
     def test_tool_with_timeout_no_finding(self):
         analyzer = self._make_analyzer()
@@ -102,8 +105,8 @@ class TestGovernanceAnalyzer:
             "data": {"tools": [{"name": "tool1"}]},
         }]
         findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
-        for f in findings:
-            assert f["severity"] == "medium"
+        severities = {f["severity"] for f in findings}
+        assert severities <= {"medium", "low"}
 
     def test_deduplicates_findings(self):
         analyzer = self._make_analyzer()
@@ -147,3 +150,63 @@ class TestGovernanceAnalyzer:
         findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
         rule_ids = [f["rule_id"] for f in findings]
         assert "GOV_TIMEOUT_MISSING" in rule_ids
+
+    def test_tool_with_circuit_breaker_no_finding(self):
+        analyzer = self._make_analyzer()
+        agent_models = [{
+            "file": "agent.py",
+            "data": {
+                "tools": [{"name": "tool1", "kwargs": {"circuit_breaker": True}, "line": 5}],
+            },
+        }]
+        findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
+        rule_ids = [f["rule_id"] for f in findings]
+        assert "GOV_CIRCUIT_BREAKER_MISSING" not in rule_ids
+
+    def test_tool_with_backpressure_no_finding(self):
+        analyzer = self._make_analyzer()
+        agent_models = [{
+            "file": "agent.py",
+            "data": {
+                "tools": [{"name": "tool1", "config": {"max_concurrent": 10}, "line": 5}],
+            },
+        }]
+        findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
+        rule_ids = [f["rule_id"] for f in findings]
+        assert "GOV_BACKPRESSURE_MISSING" not in rule_ids
+
+    def test_tool_with_health_check_no_finding(self):
+        analyzer = self._make_analyzer()
+        agent_models = [{
+            "file": "agent.py",
+            "data": {
+                "tools": [{"name": "tool1", "kwargs": {"health_check": "/health"}, "line": 5}],
+            },
+        }]
+        findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
+        rule_ids = [f["rule_id"] for f in findings]
+        assert "GOV_HEALTH_CHECK_MISSING" not in rule_ids
+
+    def test_source_confirms_circuit_breaker(self):
+        analyzer = self._make_analyzer()
+        content = "circuit_breaker = CircuitBreaker()\ntool = search_tool()"
+        file_cache = {"agent.py": content}
+        agent_models = [{
+            "file": "agent.py",
+            "data": {"tools": [{"name": "tool1", "line": 2}]},
+        }]
+        findings = analyzer.run(file_cache, self._default_rules(), agent_models=agent_models)
+        rule_ids = [f["rule_id"] for f in findings]
+        assert "GOV_CIRCUIT_BREAKER_MISSING" not in rule_ids
+
+    def test_finding_has_confidence_scope_limitation(self):
+        analyzer = self._make_analyzer()
+        agent_models = [{
+            "file": "agent.py",
+            "data": {"tools": [{"name": "tool1"}]},
+        }]
+        findings = analyzer.run({}, self._default_rules(), agent_models=agent_models)
+        for f in findings:
+            assert f["confidence"] == "heuristic"
+            assert f["scope"] == "static-analysis"
+            assert "limitation" in f and len(f["limitation"]) > 0

@@ -132,3 +132,52 @@ class TestDataFlowAnalyzer:
         findings = analyzer.run({"app.py": content}, [])
         # Should detect propagation through intermediate variable
         assert isinstance(findings, list)
+
+    def test_placeholder_prefix_test_skipped(self):
+        analyzer = self._make_analyzer()
+        content = "test_input = request.form['input']\nos.system(test_input)"
+        findings = analyzer.run({"app.py": content}, [])
+        rule_ids = [f["rule_id"] for f in findings]
+        assert "DATAFLOW_SHELL" not in rule_ids
+
+    def test_placeholder_prefix_example_skipped(self):
+        analyzer = self._make_analyzer()
+        content = "example_query = request.form['q']\nprompt = example_query"
+        findings = analyzer.run({"app.py": content}, [])
+        assert findings == []
+
+    def test_placeholder_prefix_mock_skipped(self):
+        analyzer = self._make_analyzer()
+        content = "mock_data = request.form['data']\nos.system(mock_data)"
+        findings = analyzer.run({"app.py": content}, [])
+        rule_ids = [f["rule_id"] for f in findings]
+        assert "DATAFLOW_SHELL" not in rule_ids
+
+    def test_non_placeholder_not_skipped(self):
+        analyzer = self._make_analyzer()
+        content = "user_input = request.form['input']\nos.system(user_input)"
+        findings = analyzer.run({"app.py": content}, [])
+        rule_ids = [f["rule_id"] for f in findings]
+        assert "DATAFLOW_SHELL" in rule_ids
+
+    def test_finding_has_confidence_scope_limitation(self):
+        analyzer = self._make_analyzer()
+        content = "user_input = input()\nos.system(user_input)"
+        findings = analyzer.run({"app.py": content}, [])
+        for f in findings:
+            assert f["confidence"] == "heuristic"
+            assert f["scope"] == "static-analysis"
+            assert "limitation" in f and len(f["limitation"]) > 0
+
+    def test_non_python_file_no_dataflow(self):
+        analyzer = self._make_analyzer()
+        content = '{"input": "user_input"}'
+        findings = analyzer.run({"config.json": content}, [])
+        assert findings == []
+
+    def test_no_finding_for_test_prefixed_variable(self):
+        analyzer = self._make_analyzer()
+        content = "test_user = input('Enter: ')\nos.system(test_user)"
+        findings = analyzer.run({"app.py": content}, [])
+        rule_ids = [f["rule_id"] for f in findings]
+        assert "DATAFLOW_SHELL" not in rule_ids

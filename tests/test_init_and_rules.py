@@ -101,6 +101,24 @@ class TestSafeAIInit:
         finally:
             os.chdir(original_cwd)
 
+    def test_init_preserves_custom_files(self, tmp_path):
+        """Init without --force must not overwrite pre-existing custom files."""
+        from safeai.cmd.cli import main
+
+        original_cwd = os.getcwd()
+        os.chdir(tmp_path)
+        try:
+            safeai_dir = tmp_path / ".safeai"
+            safeai_dir.mkdir(exist_ok=True)
+            custom_policy = "# custom policy\nrules: []\n"
+            (safeai_dir / "policy.yml").write_text(custom_policy)
+
+            main(["init"])
+
+            assert (safeai_dir / "policy.yml").read_text() == custom_policy
+        finally:
+            os.chdir(original_cwd)
+
 
 # ---------------------------------------------------------------------------
 # Rule loader: auto-discovery and validation
@@ -206,7 +224,7 @@ class TestRulePackManifest:
             "config_hash": "def456",
             "custom_rules_dir": "/tmp/rules",
             "custom_rules_count": 3,
-            "builtin_rules_count": 73,
+            "builtin_rules_count": 76,
             "rule_pack_ids": ["built-in:base_rules.yaml", "custom:my_rules.yml"],
         }
         manifest = build_manifest(
@@ -218,6 +236,6 @@ class TestRulePackManifest:
             agents=[],
         )
         assert manifest["safeai"]["custom_rules_count"] == 3
-        assert manifest["safeai"]["builtin_rules_count"] == 73
+        assert manifest["safeai"]["builtin_rules_count"] == 76
         assert "custom:my_rules.yml" in manifest["safeai"]["rule_pack_ids"]
         assert manifest["safeai"]["custom_rules_dir"] == "/tmp/rules"

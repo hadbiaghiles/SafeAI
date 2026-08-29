@@ -94,19 +94,66 @@ unblocking CE 2.0.
 
 ---
 
-## v1.9.0 (Unreleased — curated scope: "Component Depth & Ecosystem Foundations")
+## v1.9.0 (Shipped — curated scope: "Component Depth & Ecosystem Foundations")
 
-Carries the remaining depth items not in v1.8.0.
+**SafeAI 1.9.0 carries the remaining depth items not in v1.8.0: CE 1.6
+component-record depth, CE 1.4/1.5 governance and data-flow leftovers, and
+CE 2.0 ecosystem foundations.** Every item below was confirmed as shipped in
+the v1.9.0 architectural review.
 
-- **CE 1.6 depth** — component version/hash columns; `safeai registry components`
-  impact-query CLI; component-level unpinned-reference and unsafe-composition
-  detection; component manifests / lockfile-style integrity.
-- **CE 1.4 / CE 1.5 leftovers** — governance signal detection (timeout/retry/
-  approval/audit/rate-limit); heuristic data-flow depth (untrusted input into
-  prompts / tool args).
-- **CE 2.0 foundations** — `safeai init`; custom rule authoring scaffold; OWASP
-  Agentic / OWASP LLM / NIST AI RMF control mappings (taxonomy only); portable
-  registry import; per-scan plugin / rule-pack versions.
+### Workstream 1 — Component version/hash (WS1)
+
+- Component `content_hash` (SHA-256, truncated to 16 chars) stored in the KYA
+  registry's `component_snapshots` table (schema v5).
+- `safeai registry components` CLI lists tracked components with deduplication,
+  type filtering, and consuming-agent resolution.
+- Hash-based `_has_changed()` in `component_diff` replaces data-equality checks.
+
+### Workstream 2 — `safeai init` + custom rule scaffold (WS2)
+
+- `safeai init [--profile NAME] [--force]` scaffolds `.safeai/` with `config.yml`,
+  `policy.yml`, `suppressions.yml`, and `rules/example_rules.yaml`.
+- Identity-preserving init: existing `local_project_uuid` and `project_id` are
+  never overwritten.
+- `load_rules()` auto-discovers `.safeai/rules/` with validation and metadata.
+
+### Workstream 3 — Governance signal detection (WS3)
+
+- `GovernanceAnalyzer` detects missing operational governance controls:
+  timeout, retry, approval (HITL), audit logging, rate limiting, circuit breaker
+  pattern, backpressure/concurrency limits, and health check/readiness probes.
+- Eight rules: `GOV_TIMEOUT_MISSING`, `GOV_RETRY_MISSING`,
+  `GOV_APPROVAL_MISSING`, `GOV_AUDIT_MISSING`, `GOV_RATE_LIMIT_MISSING`,
+  `GOV_CIRCUIT_BREAKER_MISSING`, `GOV_BACKPRESSURE_MISSING`,
+  `GOV_HEALTH_CHECK_MISSING`.
+- Per-tool deduplication; source-level confirmation scoped to ±10 lines.
+
+### Workstream 4 — Control mappings taxonomy (WS4)
+
+- Structured mapping layer between SafeAI rules and external control
+  frameworks: OWASP Top 10 for LLM Applications (2025), OWASP Top 10 for
+  Agentic Applications (2025), and NIST AI RMF 1.0.
+- `map_rule_to_controls()` and `map_findings_to_controls()` API.
+- Taxonomy only — never a compliance or coverage claim.
+
+### Workstream 5 — Adapter completion (WS5)
+
+- AutoGen framework adapter; detection tightened (requires import, class usage,
+  or registration pattern — no bare substring).
+- LangGraph parser detects `add_conditional_edges()`; detection tightened
+  (requires `StateGraph` — no loose `Graph(` match).
+- Browser automation rules split: `CAP_browser_playwright`,
+  `CAP_browser_selenium`, `CAP_browser_use`.
+
+### Workstream 6 — Heuristic data-flow depth (WS6)
+
+- `DataFlowAnalyzer` tracks untrusted input propagation into sensitive sinks
+  (prompts, tool calls, shell, file writes, HTTP requests, database queries).
+- Six rules: `DATAFLOW_prompt`, `DATAFLOW_tool_call`, `DATAFLOW_shell`,
+  `DATAFLOW_file_write`, `DATAFLOW_http_request`, `DATAFLOW_database`.
+- Placeholder-aware confidence: `test_`, `example_`, `dummy_`, `mock_`,
+  `fake_`, `sample_`, `fixture_`, `stub_`, `temp_`, `tmp_` prefixes skipped.
+- `.py`-only file filter; governance source confirmation scoped to ±10 lines.
 
 ### Community contributors
 
@@ -119,8 +166,12 @@ Thank you to the following community members for their contributions:
   [#83](https://github.com/ikaruscareer/SafeAI/pull/83)), and a
   GitHub Actions workflow example (PR
   [#84](https://github.com/ikaruscareer/SafeAI/pull/84)).
-- **Remote repository scanning** — scan GitHub, Bitbucket, and other remote
-  repositories directly without local checkout.
+
+### Verification Snapshot
+
+- 564 tests passing, 1 skipped.
+- Lint passing (`ruff check safeai/ tests/`).
+- 76 built-in rules in `safeai/rules/base_rules.yaml`.
 
 ---
 

@@ -139,6 +139,40 @@ def _attribution_notes(report):
     return notes
 
 
+def _mcp_assurance_notes(report):
+    """Note MCP servers whose assurance level is lower than fully resolved."""
+    notes = []
+    servers = report.get("mcp_assets") or []
+    external = []
+    unresolved = []
+    for srv in servers:
+        if not isinstance(srv, dict):
+            continue
+        assurance = srv.get("assurance", "")
+        name = srv.get("name") or srv.get("server") or "unknown"
+        if assurance == "external-package":
+            external.append(name)
+        elif assurance == "unresolved-command":
+            unresolved.append(name)
+    if external:
+        listed = ", ".join(sorted(external)[:3])
+        suffix = ", …" if len(external) > 3 else ""
+        notes.append(
+            f"{len(external)} MCP {_plural(len(external), 'server')} reference"
+            f" external packages (not scanned): {listed}{suffix}; capability "
+            "surface is reported from configuration only, not from source"
+        )
+    if unresolved:
+        listed = ", ".join(sorted(unresolved)[:3])
+        suffix = ", …" if len(unresolved) > 3 else ""
+        notes.append(
+            f"{len(unresolved)} MCP {_plural(len(unresolved), 'server')} command"
+            f" could not be resolved locally: {listed}{suffix}; capability "
+            "surface may be incomplete"
+        )
+    return notes
+
+
 def build_assurance_boundary(report):
     """Return the assurance boundary for ``report``.
 
@@ -153,6 +187,7 @@ def build_assurance_boundary(report):
     coverage_notes.extend(_parse_failure_notes(report))
     coverage_notes.extend(_inference_notes(report, inferred_count, inferred_tools))
     coverage_notes.extend(_attribution_notes(report))
+    coverage_notes.extend(_mcp_assurance_notes(report))
     if not coverage_notes:
         coverage_notes.append(
             "no files were skipped, no configuration failed to parse, and no "
