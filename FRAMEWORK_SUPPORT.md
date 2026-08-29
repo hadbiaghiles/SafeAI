@@ -430,6 +430,27 @@ SafeAI detects:
 
 ---
 
+## Claude Code
+
+### Detection Approach
+
+- **Files:** `CLAUDE.md`, `.claude/settings.json`, `.claude/settings.local.json`, `.claude/commands/*.md`, `.claude/agents/*`, `.mcp.json`
+- **Scope:** Repository-local only (no `~/.claude` user directory reads)
+- **Parser:** Lenient JSON with comments and trailing commas, YAML frontmatter on Markdown commands
+
+### Artifacts Discovered
+
+| Artifact | Detection | Confidence | Description |
+|----------|-----------|-----------|-------------|
+| Settings & Permissions | `.claude/settings.json` | High | `permissions.allow`, `deny`, `ask`, wildcard rules, bypass flags |
+| Local Overrides | `.claude/settings.local.json` | High | Developer-local overrides and tool grants |
+| Slash Commands | `.claude/commands/*.md` | High | Custom slash commands, frontmatter `allowed-tools`, shell invocations |
+| Subagents | `.claude/agents/*` | High | Specialized subagent definitions and delegated capabilities |
+| MCP Servers | `.mcp.json`, `settings.json` | High | Model Context Protocol servers and tool constraints |
+| Lifecycle Hooks | `settings.json:hooks` | High | PreToolUse/PostToolUse shell command executions |
+
+---
+
 ## Test Fixtures (v1.8.0)
 
 Representative test fixtures and validation tests verify that SafeAI correctly
@@ -441,7 +462,7 @@ the community and cover the most common patterns for each framework.
 | LangGraph | `tests/test_langgraph_framework.py` | `tests/fixtures/langgraph/representative/graph.py` | `StateGraph`, `add_edge`, `add_node`, tool binding, model detection |
 | LlamaIndex | `tests/test_llamaindex_framework.py` | `tests/fixtures/llamaindex/representative/agent.py` | Agent, tool, index, and model detection |
 | CrewAI | `tests/test_crewai_framework.py` | `tests/fixtures/crewai/representative/crew.py` | `Agent`, `Task`, tool, and model detection |
-| Claude Code | `tests/test_claude_code_deep.py` | `tests/fixtures/claude_code/compatibility/` | `.claude/settings.json`, `.mcp.json`, `CLAUDE.md` parsing |
+| Claude Code | `tests/test_claude_code_deep.py` | `tests/fixtures/claude_code/` (`minimal`, `permissive`, `slash_injection`, `subagent_escalation`, `malformed`, `compatibility`) | Deep settings permissions, wildcards, bypass flags, shadowed denies, slash command shell/arg injection, subagent escalation, lifecycle hooks, and lenient JSON parsing |
 
 Thanks to @adnqcr7-code for these contributions (PRs #59, #61, #62, #63).
 
