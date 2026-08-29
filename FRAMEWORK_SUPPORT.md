@@ -1,8 +1,8 @@
 # SafeAI — Framework Support Reference
 
-> **Current release: v1.8.0** (2026-08-23) — finding lifecycle engine,
-> tool↔implementation mapping, target taxonomy, detection depth, and
-> community scan expansion.
+> **Current release: v1.9.0** (2026-08-28) — governance signal detection,
+> data-flow analysis, control mappings, component version/hash, `safeai init`,
+> adapter completion.
 
 This document details the detection approach, discovered artifacts, capabilities, and limitations for each supported AI agent framework.
 

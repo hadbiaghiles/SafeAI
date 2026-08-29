@@ -193,7 +193,11 @@ class GovernanceAnalyzer:
                     findings.append(_finding(
                         rule_id=rule_id,
                         rule=rule,
-                        message=f"Tool '{tool_name}' missing {control} configuration",
+                        message=(
+                            f"Observation: tool '{tool_name}' does not declare "
+                            f"{control} in source within ±10 lines of its definition "
+                            f"(not verified at runtime)"
+                        ),
                         path=path,
                         line=tool.get("line", 1),
                         tool_name=tool_name,

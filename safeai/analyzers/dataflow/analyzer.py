@@ -205,7 +205,12 @@ class DataFlowAnalyzer:
                 findings.append(_finding(
                     rule_id=rule_id,
                     rule=rule,
-                    message=f"Untrusted input '{prop['source_var']}' flows into {prop['sink_type']} at line {prop['sink_line']}",
+                    message=(
+                        f"Observation: variable '{prop['source_var']}' (line "
+                        f"{prop['source_line']}) appears in {prop['sink_type']} "
+                        f"at line {prop['sink_line']} — heuristic propagation "
+                        f"(not verified at runtime)"
+                    ),
                     path=path,
                     line=prop["sink_line"],
                     evidence=f"source:{prop['source_var']}@L{prop['source_line']} -> sink:{prop['sink_type']}@L{prop['sink_line']}",

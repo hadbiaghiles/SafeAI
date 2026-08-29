@@ -4,6 +4,14 @@ import os
 
 import yaml
 
+
+def _builtin_rule_count():
+    """Derive the built-in rule count from base_rules.yaml (single source of truth)."""
+    path = os.path.join(os.path.dirname(__file__), "..", "safeai", "rules", "base_rules.yaml")
+    with open(path, encoding="utf-8") as fh:
+        rules = yaml.safe_load(fh)
+    return sum(1 for r in rules if isinstance(r, dict) and "id" in r)
+
 # ---------------------------------------------------------------------------
 # safeai init
 # ---------------------------------------------------------------------------
@@ -224,7 +232,7 @@ class TestRulePackManifest:
             "config_hash": "def456",
             "custom_rules_dir": "/tmp/rules",
             "custom_rules_count": 3,
-            "builtin_rules_count": 76,
+            "builtin_rules_count": _builtin_rule_count(),
             "rule_pack_ids": ["built-in:base_rules.yaml", "custom:my_rules.yml"],
         }
         manifest = build_manifest(
@@ -236,6 +244,6 @@ class TestRulePackManifest:
             agents=[],
         )
         assert manifest["safeai"]["custom_rules_count"] == 3
-        assert manifest["safeai"]["builtin_rules_count"] == 76
+        assert manifest["safeai"]["builtin_rules_count"] == _builtin_rule_count()
         assert "custom:my_rules.yml" in manifest["safeai"]["rule_pack_ids"]
         assert manifest["safeai"]["custom_rules_dir"] == "/tmp/rules"
