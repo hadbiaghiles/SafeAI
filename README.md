@@ -133,6 +133,7 @@ Registry & Reports — shared SQLite registry; terminal, JSON, SARIF 2.1.0, HTML
 | LlamaIndex | ✔ | Partial | Minimal | Minimal | Experimental |
 | Dify | ✔ | Minimal | Minimal | Minimal | Experimental |
 | n8n | ✔ | Partial | Minimal | Minimal | Experimental |
+| AutoGen | ✔️ | Partial | Minimal | Minimal | Experimental |
 
 
 ### Framework Support Details
