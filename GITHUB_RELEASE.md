@@ -1,5 +1,95 @@
 # SafeAI — GitHub Release
 
+## v1.9.0
+
+Static AI Capability & Risk Analyzer for AI agents and workflows. Detects
+prompt injection, data leakage, excessive agency, MCP misconfigurations, and
+credential/capability mismatches — entirely offline and static. This release
+adds component-record depth, governance signal detection, heuristic data-flow
+analysis, control mappings, and ecosystem foundations (`safeai init`, registry
+components CLI).
+
+### Installation
+
+```bash
+pip install SafeAI-Static-Analyzer
+```
+
+### Quick Start
+
+```bash
+safeai scan /path/to/project
+safeai init  # scaffold .safeai/ with config, policy, suppressions
+safeai registry components  # list tracked components
+```
+
+### GitHub Action
+
+```yaml
+- uses: ikaruscareer/SafeAI@v1
+  with:
+    path: .
+    fail-on: critical
+```
+
+### What's New in 1.9.0
+
+**Component Depth (WS1)**
+- Component `content_hash` (SHA-256) stored in `component_snapshots` table (schema v5).
+- `safeai registry components` CLI with dedup, type filtering, and agent resolution.
+
+**Ecosystem Foundations (WS2)**
+- `safeai init [--profile NAME] [--force]` scaffolds `.safeai/` with config, policy, suppressions.
+- Identity-preserving init: existing `local_project_uuid` never overwritten.
+
+**Governance Signal Detection (WS3)**
+- `GovernanceAnalyzer` with 8 rules: timeout, retry, approval, audit, rate limiting, circuit breaker, backpressure, health check.
+- Per-tool deduplication; source-level confirmation scoped to ±10 lines.
+
+**Control Mappings (WS4)**
+- Structured mapping layer: OWASP LLM, OWASP Agentic, NIST AI RMF.
+- `map_rule_to_controls()` and `map_findings_to_controls()` API.
+
+**Adapter Completion (WS5)**
+- AutoGen tightened (requires import, class usage, or registration).
+- LangGraph detects `add_conditional_edges()`.
+- Browser automation rules split: Playwright / Selenium / browser_use.
+
+**Heuristic Data-Flow Depth (WS6)**
+- `DataFlowAnalyzer` tracks untrusted input propagation into sensitive sinks.
+- 6 rules: prompt, tool_call, shell, file_write, http_request, database.
+- Placeholder-aware confidence; `.py`-only file filter.
+
+### Supported Frameworks (16)
+
+LangGraph, CrewAI, AutoGen, LangChain, Semantic Kernel, OpenAI Agents,
+Microsoft Agent, Azure AI Foundry, Bedrock Agent, Claude Code, Google ADK,
+Mastra, Haystack, LlamaIndex, Dify, n8n.
+
+### Output Formats
+
+- Terminal (human-readable)
+- JSON (machine-readable)
+- SARIF 2.1.0 (GitHub Advanced Security)
+- HTML (self-contained interactive report)
+- KYA manifest (`safeai-manifest.json`)
+- PR comment (reviewer-facing escalation summary)
+- Security Scorecard (Markdown / JSON)
+
+### Links
+
+- [Landing Page](https://safeai-analyzer.ikaruscareer.com)
+- [Source Code](https://github.com/ikaruscareer/SafeAI)
+- [Issue Tracker](https://github.com/ikaruscareer/SafeAI/issues)
+- [Changelog](RELEASE_NOTES.md)
+
+### Assets
+
+- `safeai_static_analyzer-1.9.0-py3-none-any.whl`
+- `safeai_static_analyzer-1.9.0.tar.gz`
+
+---
+
 ## v1.8.0
 
 Static AI Capability & Risk Analyzer for AI agents and workflows. Detects
