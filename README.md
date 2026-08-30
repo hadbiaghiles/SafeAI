@@ -120,6 +120,7 @@ Registry & Reports — shared SQLite registry; terminal, JSON, SARIF 2.1.0, HTML
 |-----------|-----------|-----------|-------------------|---------------|--------|
 | LangGraph | ✔ | Partial | Partial | Partial | Partial |
 | CrewAI | ✔ | Partial | Partial | Partial | Partial |
+| AutoGen | ✔ | Partial | Minimal | Minimal | Experimental |
 | LangChain | ✔ | Partial | Partial | Partial | Partial |
 | Semantic Kernel | ✔ | Partial | Partial | Partial | Partial |
 | OpenAI Agents SDK | ✔ | Partial | Partial | Partial | Partial |
@@ -139,6 +140,7 @@ Registry & Reports — shared SQLite registry; terminal, JSON, SARIF 2.1.0, HTML
 
 - **LangGraph** — detects `StateGraph`, `add_edge`, `bind_tools`, nodes, models
 - **CrewAI** — detects `Agent`, `Task`, tools, models
+- **AutoGen** — detects `AssistantAgent`, `UserProxyAgent`, `register_for_llm`, agent delegation
 - **LangChain** — detects `AgentExecutor`, `Chain`, `Tool`, `PromptTemplate`, models
 - **Semantic Kernel** — detects `Kernel.invoke`, plugins, functions, skills, memory
 - **OpenAI Agents SDK** — detects `Agent`, tools, handoffs, MCP references

@@ -27,6 +27,7 @@ we deliberately do not overclaim coverage.
 |-----------|-----------------|----------------|---------------------|---------------|----------|
 | LangGraph | AST + regex | Nodes, edges, tools, models, memory | Shell, filesystem, memory, planner | Partial | Partial |
 | CrewAI | AST + regex | Agents, tasks, tools, models, memory | Shell, memory, delegations | Partial | Partial |
+| AutoGen | AST + regex | Agents, tools, models | Multi-agent, delegation | Minimal | Experimental |
 | LangChain | AST + metadata + regex | Agents, chains, tools, memory, models | Shell, memory, planner | Partial | Partial |
 | Semantic Kernel | AST + metadata + regex | Workflows, plugins, memory, models, skills | Shell, memory, planner | Partial | Partial |
 | OpenAI Agents SDK | AST + metadata + regex | Agents, tools, handoffs, MCP | Multi-agent, delegation, MCP | Partial | Partial |
@@ -135,6 +136,46 @@ SafeAI detects:
 - Framework: `crewai`
 - Agent: `agent`
 - Task: `task` with description and agent assignment
+
+---
+
+## AutoGen
+
+### Detection Approach
+
+**Priority:** AST → regex fallback
+
+- **Imports:** Detects `autogen` in Python import statements (e.g., `from autogen import AssistantAgent`)
+- **AST:** Parses `AssistantAgent()`, `UserProxyAgent()`, `register_for_llm()`, `register_function()` calls
+- **Regex fallback:** `AssistantAgent(`, `UserProxyAgent(`, `register_for_llm`, `register_function`
+
+### Artifacts Discovered
+
+| Artifact | Detection | Confidence | Description |
+|----------|-----------|-----------|-------------|
+| Agents | AST `AssistantAgent()`, `UserProxyAgent()` | 0.85 | AutoGen agent definitions |
+| Tools | AST `register_for_llm()`, `register_function()` | 0.80 | Tool registrations |
+| Models | AST model constructor calls | 0.80 | LLM provider references |
+
+### Capabilities Discovered
+
+- **Multi-Agent** — Multiple `Agent()` instances with delegation
+- **Delegation** — Agent-to-agent conversation patterns
+- **External APIs** — Model references
+
+### Detection Example
+
+```python
+from autogen import AssistantAgent, UserProxyAgent
+
+assistant = AssistantAgent("assistant", llm_config=llm_config)
+user_proxy = UserProxyAgent("user_proxy", code_execution_config=False)
+```
+
+SafeAI detects:
+- Framework: `autogen`
+- Agents: `assistant`, `user_proxy`
+- Multi-agent delegation pattern
 
 ---
 
